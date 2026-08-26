@@ -168,14 +168,7 @@ const api = {
     close: (): void => void invoke('window_close'),
     hide: (): void => void invoke('window_hide'),
     isMaximized: (): Promise<boolean> => invoke('window_is_maximized'),
-    onState: (cb: (maximized: boolean) => void) => on('window:state', cb),
-    /**
-     * Tells the backend where the maximise button ended up, so its hit-test
-     * hook can claim that strip as a real caption button and Windows 11 offers
-     * the Snap Layouts flyout on hover.
-     */
-    setCaptionMaxRect: (x: number, y: number, width: number, height: number): void =>
-      void invoke('caption_set_max_rect', { x, y, width, height })
+    onState: (cb: (maximized: boolean) => void) => on('window:state', cb)
   },
 
   ui: {

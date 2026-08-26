@@ -13,7 +13,6 @@ pub mod files;
 pub mod overlay;
 pub mod protocol;
 pub mod shortcuts;
-pub mod snap;
 pub mod state;
 pub mod store;
 pub mod tray;
@@ -74,12 +73,9 @@ pub fn run() {
             commands::overlay_cancel,
             commands::overlay_confirm,
             commands::overlay_broadcast_cursor,
-            commands::caption_set_max_rect,
         ])
         .setup(|tauri_app| {
             let handle = tauri_app.handle().clone();
-            // Parked before anything else: the Win32 hook in `snap` is called
-            // by the shell and has no other route back into the app.
             state::remember(&handle);
 
             shortcuts::apply(&handle);
@@ -88,10 +84,6 @@ pub fn run() {
             }
 
             let window = app::create_main(&handle)?;
-            // Windows 11's Snap Layouts flyout only appears for a window that
-            // claims a maximise button; ours is drawn in HTML, so the claim has
-            // to be made by hand.
-            snap::attach(&window);
             // `--tray` is how a sign-in launch asks to come up quietly: the
             // hotkeys and tray are live, but nothing appears on screen.
             if !std::env::args().any(|arg| arg == "--tray") {

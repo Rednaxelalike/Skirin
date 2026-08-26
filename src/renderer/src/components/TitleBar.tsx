@@ -217,39 +217,19 @@ export function CropMarks({ className }: { className?: string }): React.JSX.Elem
  * equivalent, so the app owns them. They keep the Windows 11 metrics — 46x40,
  * a red close button — so muscle memory and the hover targets are unchanged.
  *
- * The maximise button reports its bounds to the backend's WM_NCHITTEST hook,
- * which is what keeps the Snap Layouts flyout appearing on hover.
+ * One thing does not survive the move: hovering Maximise no longer opens the
+ * Windows 11 Snap Layouts flyout. That needs the top-level window to answer
+ * WM_NCHITTEST with HTMAXBUTTON, and the WebView2 child covers the client
+ * area, so the hit test never reaches it. Snapping by drag or by Win+Arrow is
+ * unaffected.
  */
 function CaptionButtons(): React.JSX.Element {
   const [maximized, setMaximized] = React.useState(false)
-  const maxRef = React.useRef<HTMLButtonElement>(null)
 
   React.useEffect(() => {
     void window.skirin.window.isMaximized().then(setMaximized)
     return window.skirin.window.onState(setMaximized)
   }, [])
-
-  // The backend hit-tests against physical pixels, and the reported rect has
-  // to survive both a resize and a monitor change — a window dragged to a
-  // display at a different scale lands the button somewhere else entirely.
-  React.useEffect(() => {
-    const report = (): void => {
-      const node = maxRef.current
-      if (!node) return
-      const box = node.getBoundingClientRect()
-      const dpr = window.devicePixelRatio || 1
-      window.skirin.window.setCaptionMaxRect(
-        Math.round(box.left * dpr),
-        Math.round(box.top * dpr),
-        Math.round(box.width * dpr),
-        Math.round(box.height * dpr)
-      )
-    }
-
-    report()
-    window.addEventListener('resize', report)
-    return () => window.removeEventListener('resize', report)
-  }, [maximized])
 
   return (
     <div className="no-drag ml-1 flex h-10 shrink-0 self-start">
@@ -258,7 +238,6 @@ function CaptionButtons(): React.JSX.Element {
       </CaptionButton>
 
       <CaptionButton
-        ref={maxRef}
         label={maximized ? 'Restore' : 'Maximize'}
         onClick={() => window.skirin.window.toggleMaximize()}
       >
@@ -296,7 +275,6 @@ function CaptionButton({
   onClick: () => void
   danger?: boolean
   children: React.ReactNode
-  ref?: React.Ref<HTMLButtonElement>
 } & React.ButtonHTMLAttributes<HTMLButtonElement>): React.JSX.Element {
   return (
     <button

@@ -40,11 +40,7 @@ impl App {
     }
 }
 
-/// A process-wide handle, for the code Tauri cannot hand one to.
-///
-/// The Win32 window procedure in [`crate::snap`] is called by the shell, not by
-/// Tauri, so it arrives with nothing but an `HWND`. This is the only way back
-/// into the app from there.
+/// A process-wide handle, for code Tauri cannot hand one to directly.
 static HANDLE: OnceLock<tauri::AppHandle> = OnceLock::new();
 
 pub fn remember(app: &tauri::AppHandle) {

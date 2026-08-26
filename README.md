@@ -4,9 +4,14 @@ A screenshot studio for Windows. Capture an area, a window or a whole display,
 then dress the result in gradients, padding, shadows, perspective and
 annotations — and paste it anywhere in a couple of seconds.
 
-Built as a native-feeling Windows 11 app: Mica window material, real caption
-buttons, global hotkeys, a tray icon, and a frozen-frame selection overlay that
-snaps to real windows.
+Built as a native-feeling Windows 11 app: Mica window material, global hotkeys,
+a tray icon, and a frozen-frame selection overlay that snaps to real windows.
+
+One Windows 11 nicety is missing: hovering the maximise button does not open
+the Snap Layouts flyout. That needs the top-level window to answer
+`WM_NCHITTEST` with `HTMAXBUTTON`, and the WebView2 child covers the client
+area, so the hit test never reaches it. Dragging to an edge and Win+Arrow snap
+normally.
 
 ---
 
@@ -187,7 +192,6 @@ src-tauri/src/
     monitors.rs    monitor enumeration, physical bounds, per-monitor DPI
     windows_list.rs  z-ordered window enumeration through user32/dwmapi
     icons.rs       window icons for the picker
-  snap.rs          WM_NCHITTEST hook, so Snap Layouts still works
   files.rs         save, clipboard, dialogs, capture history
   store.rs         JSON settings/preset/history persistence
   protocol.rs      the skirin:// scheme that serves frames to the webview

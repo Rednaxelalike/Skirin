@@ -475,13 +475,3 @@ pub fn overlay_broadcast_cursor(app: AppHandle, window: WebviewWindow, point: Po
         let _ = app.emit_to(label.as_str(), "overlay:cursor", point);
     }
 }
-
-/* -------------------------------- caption ------------------------------- */
-
-/// Where the renderer drew the maximise button, in physical pixels relative to
-/// the window. The Win32 hit-test hook needs this to answer `HTMAXBUTTON` over
-/// the right strip of pixels, which is what summons the Snap Layouts flyout.
-#[tauri::command]
-pub fn caption_set_max_rect(x: i32, y: i32, width: i32, height: i32) {
-    crate::snap::set_button_rect(x, y, width, height);
-}
