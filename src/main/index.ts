@@ -157,7 +157,7 @@ async function deliver(capture: Capture | null): Promise<Capture | null> {
   const settings = getSettings()
 
   if (settings.afterCapture === 'copy' || settings.afterCapture === 'copy-save') {
-    copyImageToClipboard(capture.dataUrl)
+    await copyImageToClipboard(capture.dataUrl)
   }
   if (settings.afterCapture === 'save' || settings.afterCapture === 'copy-save') {
     await saveImage(capture.dataUrl, {
@@ -170,7 +170,7 @@ async function deliver(capture: Capture | null): Promise<Capture | null> {
 
   const opensEditor =
     settings.afterCapture === 'editor' || settings.afterCapture === 'editor-copy'
-  if (settings.afterCapture === 'editor-copy') copyImageToClipboard(capture.dataUrl)
+  if (settings.afterCapture === 'editor-copy') await copyImageToClipboard(capture.dataUrl)
 
   if (opensEditor) {
     const win = showEditor()

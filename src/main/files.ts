@@ -1,4 +1,4 @@
-import { BrowserWindow, clipboard, dialog, nativeImage, shell } from 'electron'
+import { BrowserWindow, clipboard, ClipboardItem, dialog, nativeImage, shell } from 'electron'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { ensureSaveDir, getSettings, pushHistory } from './store'
@@ -30,17 +30,32 @@ function decode(dataUrl: string): Buffer {
   return Buffer.from(dataUrl.slice(comma + 1), 'base64')
 }
 
-export function copyImageToClipboard(dataUrl: string): boolean {
+/**
+ * Electron 44 replaced the synchronous clipboard with a W3C-shaped async one:
+ * `writeImage`/`readImage` are gone, and images travel as a Blob inside a
+ * ClipboardItem instead.
+ */
+export async function copyImageToClipboard(dataUrl: string): Promise<boolean> {
   const image = nativeImage.createFromDataURL(dataUrl)
   if (image.isEmpty()) return false
-  clipboard.writeImage(image)
+  // Copy into a plain Uint8Array: Node's Buffer is typed over ArrayBufferLike,
+  // which BlobPart will not accept.
+  const blob = new Blob([new Uint8Array(image.toPNG())], { type: 'image/png' })
+  await clipboard.write([new ClipboardItem({ 'image/png': blob })])
   return true
 }
 
-export function readImageFromClipboard(): string | null {
-  const image = clipboard.readImage()
-  if (image.isEmpty()) return null
-  return image.toDataURL()
+export async function readImageFromClipboard(): Promise<string | null> {
+  for (const item of await clipboard.read()) {
+    const type = item.types.find((t) => t.startsWith('image/'))
+    if (!type) continue
+    const payload = await item.getType(type)
+    // getType only resolves to something other than a Blob for bookmarks.
+    if (!(payload instanceof Blob)) continue
+    const image = nativeImage.createFromBuffer(Buffer.from(await payload.arrayBuffer()))
+    if (!image.isEmpty()) return image.toDataURL()
+  }
+  return null
 }
 
 export interface SaveOptions {

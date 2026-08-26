@@ -12,8 +12,7 @@
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
     "noEmit": true,
-    "baseUrl": ".",
-    "paths": { "@shared/*": ["src/shared/*"] },
+    "paths": { "@shared/*": ["./src/shared/*"] },
     "types": ["node"],
     "outDir": "node_modules/.tmp/tsnode"
   }
