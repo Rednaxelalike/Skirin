@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
+  AppInfo,
   AppSettings,
   Capture,
   DisplayInfo,
@@ -79,8 +80,7 @@ const api = {
   },
 
   app: {
-    info: (): Promise<{ version: string; platform: string; saveDir: string }> =>
-      ipcRenderer.invoke('app:info')
+    info: (): Promise<AppInfo> => ipcRenderer.invoke('app:info')
   },
 
   update: {

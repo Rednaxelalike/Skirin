@@ -383,3 +383,21 @@ export interface UpdateStatus {
   percent: number
   error: string | null
 }
+
+/**
+ * How this copy of Skirin was installed. Only `installed` can apply an update
+ * in place — the other two send the user to the release page instead.
+ */
+export type BuildChannel = 'installed' | 'portable' | 'development'
+
+/** Static facts about the running build, shown in Settings → About. */
+export interface AppInfo {
+  version: string
+  platform: string
+  arch: string
+  saveDir: string
+  channel: BuildChannel
+  electron: string
+  chrome: string
+  node: string
+}

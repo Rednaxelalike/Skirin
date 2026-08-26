@@ -1,11 +1,32 @@
 import * as React from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { toast } from 'sonner'
-import { AppWindow, FolderOpen, Image as ImageIcon, RefreshCw, Trash2, X } from 'lucide-react'
-import type { AfterCapture, AppSettings, HistoryEntry, WindowSource } from '@shared/types'
+import {
+  AppWindow,
+  ArrowUpCircle,
+  ClipboardCopy,
+  ExternalLink,
+  FolderOpen,
+  Image as ImageIcon,
+  Loader2,
+  RefreshCw,
+  RotateCw,
+  Trash2,
+  X
+} from 'lucide-react'
+import type {
+  AfterCapture,
+  AppInfo,
+  AppSettings,
+  BuildChannel,
+  HistoryEntry,
+  UpdateStatus,
+  WindowSource
+} from '@shared/types'
 import { useEditor } from '@/store/editor'
 import { LOOKS } from '@/lib/presets'
 import { Button, Empty, Kbd, Row, Section, Segmented, Select, Slider, Switch } from './ui'
+import { useUpdateStatus } from './UpdatePill'
 import { cn } from '@/lib/utils'
 
 /* --------------------------------- shell --------------------------------- */
@@ -372,6 +393,182 @@ function ShortcutField({
   )
 }
 
+/* ---------------------------------- about --------------------------------- */
+
+const PLATFORM_NAMES: Record<string, string> = {
+  win32: 'Windows',
+  darwin: 'macOS',
+  linux: 'Linux'
+}
+
+/** Why this copy does or doesn't update itself, in the user's terms. */
+const CHANNEL_NOTES: Record<BuildChannel, string> = {
+  installed: 'Installed build — updates download and install themselves',
+  portable: 'Portable build — updates open the release page instead',
+  development: 'Development build — update checks are off'
+}
+
+/** The line under the version, which tracks whatever the updater is doing. */
+function updateNote(status: UpdateStatus, checked: boolean): string | null {
+  switch (status.state) {
+    case 'checking':
+      return 'Checking GitHub for a newer release…'
+    case 'available':
+      return `Skirin ${status.version} is ready to install.`
+    case 'downloading':
+      return 'Downloading — Skirin restarts on its own when this lands.'
+    case 'ready':
+      return `Skirin ${status.version} is downloaded and waiting for a restart.`
+    case 'error':
+      return status.error ? `Last check failed: ${status.error}` : 'Last check failed.'
+    default:
+      return checked ? 'You are on the latest release.' : 'Skirin checks for updates every 6 hours.'
+  }
+}
+
+/**
+ * One button for the whole update flow, matching the title-bar pill: check,
+ * then download, then restart. `checked` only exists to tell "never asked"
+ * apart from "asked, and there was nothing" — the main process calls both idle.
+ */
+function UpdateControl({
+  status,
+  onChecked
+}: {
+  status: UpdateStatus
+  onChecked: () => void
+}): React.JSX.Element {
+  const wasChecking = React.useRef(false)
+
+  React.useEffect(() => {
+    if (status.state === 'checking') {
+      wasChecking.current = true
+    } else if (wasChecking.current) {
+      wasChecking.current = false
+      onChecked()
+    }
+  }, [status.state, onChecked])
+
+  if (status.state === 'checking') {
+    return (
+      <Button variant="subtle" size="sm" disabled>
+        <Loader2 size={12} className="animate-spin" /> Checking…
+      </Button>
+    )
+  }
+
+  if (status.state === 'available') {
+    return (
+      <Button variant="brand" size="sm" onClick={() => void window.skirin.update.download()}>
+        <ArrowUpCircle size={12} /> Update to {status.version}
+      </Button>
+    )
+  }
+
+  if (status.state === 'downloading') {
+    return (
+      <Button variant="subtle" size="sm" disabled>
+        <Loader2 size={12} className="animate-spin" />
+        <span className="font-mono tabular-nums">{status.percent}%</span>
+      </Button>
+    )
+  }
+
+  if (status.state === 'ready') {
+    return (
+      <Button variant="brand" size="sm" onClick={() => void window.skirin.update.install()}>
+        <RotateCw size={12} /> Restart to finish
+      </Button>
+    )
+  }
+
+  return (
+    <Button variant="subtle" size="sm" onClick={() => void window.skirin.update.check()}>
+      <RefreshCw size={12} /> Check for updates
+    </Button>
+  )
+}
+
+/** Version, build, and runtime — the things a bug report always asks for. */
+function AboutSection(): React.JSX.Element | null {
+  const [info, setInfo] = React.useState<AppInfo | null>(null)
+  const [checked, setChecked] = React.useState(false)
+  const status = useUpdateStatus()
+
+  React.useEffect(() => {
+    let alive = true
+    void window.skirin.app.info().then((next) => {
+      if (alive) setInfo(next)
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  const onChecked = React.useCallback(() => setChecked(true), [])
+
+  if (!info) return null
+
+  const platform = `${PLATFORM_NAMES[info.platform] ?? info.platform} · ${info.arch}`
+  const note = updateNote(status, checked)
+
+  const copyDetails = (): void => {
+    void navigator.clipboard.writeText(
+      [
+        `Skirin ${info.version} (${info.channel})`,
+        `Platform: ${platform}`,
+        `Electron ${info.electron} · Chromium ${info.chrome} · Node ${info.node}`
+      ].join('\n')
+    )
+    toast.success('Version details copied')
+  }
+
+  return (
+    <Section title="About">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-[13px] font-semibold text-text-1">
+            Skirin{' '}
+            <span className="font-mono text-[12px] font-medium text-text-2">{info.version}</span>
+          </div>
+          <div className="mt-0.5 text-[10.5px] text-text-3">{CHANNEL_NOTES[info.channel]}</div>
+        </div>
+        <UpdateControl status={status} onChecked={onChecked} />
+      </div>
+
+      {note && (
+        <div
+          className={cn(
+            '-mt-1 text-[10.5px]',
+            status.state === 'error' ? 'text-amber-300/90' : 'text-text-3'
+          )}
+        >
+          {note}
+        </div>
+      )}
+
+      <Row label="Platform">
+        <span className="font-mono text-[11px] text-text-2">{platform}</span>
+      </Row>
+      <Row label="Runtime" hint="Electron · Chromium · Node">
+        <span className="font-mono text-[11px] text-text-2">
+          {info.electron} · {info.chrome} · {info.node}
+        </span>
+      </Row>
+      <Row label="Release notes" hint="What changed, on GitHub">
+        <Button variant="subtle" size="sm" onClick={() => void window.skirin.update.openReleases()}>
+          <ExternalLink size={12} /> Open
+        </Button>
+      </Row>
+      <Row label="Report a problem" hint="Paste these details into the issue">
+        <Button variant="subtle" size="sm" onClick={copyDetails}>
+          <ClipboardCopy size={12} /> Copy details
+        </Button>
+      </Row>
+    </Section>
+  )
+}
+
 export function SettingsDialog({
   open,
   onOpenChange
@@ -527,6 +724,8 @@ export function SettingsDialog({
           />
         </Row>
       </Section>
+
+      <AboutSection />
     </Shell>
   )
 }

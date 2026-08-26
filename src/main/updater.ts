@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { UpdateStatus } from '../shared/types'
+import type { BuildChannel, UpdateStatus } from '../shared/types'
 
 /** First check runs once the window has settled, not during the boot rush. */
 const FIRST_CHECK_DELAY = 12_000
@@ -48,7 +48,13 @@ function broadcast(patch: Partial<UpdateStatus>): void {
  * instead of a background failure.
  */
 function canSelfUpdate(): boolean {
-  return app.isPackaged && !process.env['PORTABLE_EXECUTABLE_DIR']
+  return buildChannel() === 'installed'
+}
+
+/** The same distinction, named, so Settings can say which copy this is. */
+export function buildChannel(): BuildChannel {
+  if (!app.isPackaged) return 'development'
+  return process.env['PORTABLE_EXECUTABLE_DIR'] ? 'portable' : 'installed'
 }
 
 export function registerUpdater(): void {

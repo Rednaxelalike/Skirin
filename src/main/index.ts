@@ -28,12 +28,13 @@ import {
   setWindowBounds
 } from './store'
 import {
+  buildChannel,
   checkForUpdatesNow,
   registerUpdater,
   startUpdateChecks,
   stopUpdateChecks
 } from './updater'
-import type { AppSettings, Capture, ExportFormat, Preset } from '../shared/types'
+import type { AppInfo, AppSettings, Capture, ExportFormat, Preset } from '../shared/types'
 
 const isDev = !!process.env['ELECTRON_RENDERER_URL']
 
@@ -350,11 +351,19 @@ function registerIpc(): void {
   ipcMain.handle('shell:open', (_e, path: string) => openPath(path))
   ipcMain.handle('shell:external', (_e, url: string) => shell.openExternal(url))
 
-  ipcMain.handle('app:info', () => ({
-    version: app.getVersion(),
-    platform: process.platform,
-    saveDir: getSettings().saveDir
-  }))
+  ipcMain.handle(
+    'app:info',
+    (): AppInfo => ({
+      version: app.getVersion(),
+      platform: process.platform,
+      arch: process.arch,
+      saveDir: getSettings().saveDir,
+      channel: buildChannel(),
+      electron: process.versions.electron,
+      chrome: process.versions.chrome,
+      node: process.versions.node
+    })
+  )
 
   ipcMain.on('window:minimize', (e) => BrowserWindow.fromWebContents(e.sender)?.minimize())
   ipcMain.on('window:toggle-maximize', (e) => {
