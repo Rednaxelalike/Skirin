@@ -1,0 +1,62 @@
+{
+  "name": "skirin",
+  "version": "1.0.0",
+  "description": "Skirin — a beautiful, native-feeling screenshot studio for Windows",
+  "main": "./out/main/index.js",
+  "author": "Skirin",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "dev": "node scripts/make-icons.mjs && electron-vite dev",
+    "start": "electron-vite preview",
+    "build": "node scripts/make-icons.mjs && electron-vite build",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "dist": "node scripts/make-icons.mjs && electron-vite build && electron-builder --win --publish never",
+    "dist:portable": "node scripts/make-icons.mjs && electron-vite build && electron-builder --win portable --publish never",
+    "dist:zip": "node scripts/make-icons.mjs && electron-vite build && electron-builder --win zip --publish never",
+    "icons": "node scripts/make-icons.mjs",
+    "release": "node scripts/make-icons.mjs && electron-vite build && electron-builder --win --publish always"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
+  },
+  "devDependencies": {
+    "@radix-ui/react-dialog": "^1.1.6",
+    "@radix-ui/react-dropdown-menu": "^2.1.6",
+    "@radix-ui/react-popover": "^1.1.6",
+    "@radix-ui/react-scroll-area": "^1.2.3",
+    "@radix-ui/react-select": "^2.1.6",
+    "@radix-ui/react-slider": "^1.2.3",
+    "@radix-ui/react-switch": "^1.1.3",
+    "@radix-ui/react-tabs": "^1.1.3",
+    "@radix-ui/react-tooltip": "^1.1.8",
+    "@tailwindcss/vite": "^4.0.9",
+    "@types/node": "^22.13.5",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "@vitejs/plugin-react": "^4.3.4",
+    "clsx": "^2.1.1",
+    "electron": "^34.2.0",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "^3.0.0",
+    "lucide-react": "^0.475.0",
+    "motion": "^12.4.7",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "sonner": "^2.0.1",
+    "tailwind-merge": "^3.0.2",
+    "tailwindcss": "^4.0.9",
+    "tesseract.js": "^5.1.1",
+    "typescript": "^5.7.3",
+    "vite": "^6.2.0",
+    "zustand": "^5.0.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Rednaxelalike/skirin.git"
+  },
+  "homepage": "https://github.com/Rednaxelalike/skirin",
+  "bugs": {
+    "url": "https://github.com/Rednaxelalike/skirin/issues"
+  }
+}

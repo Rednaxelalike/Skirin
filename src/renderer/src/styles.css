@@ -1,0 +1,141 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans:
+    'Segoe UI Variable Display', 'Segoe UI Variable', 'Segoe UI', ui-sans-serif, system-ui,
+    -apple-system, 'Inter', sans-serif;
+  --font-mono: 'Cascadia Code', 'Cascadia Mono', ui-monospace, 'SFMono-Regular', monospace;
+
+  /* Surfaces — tuned to sit on top of Windows 11 Mica. */
+  --color-ink-0: #060608;
+  --color-ink-1: #0c0c11;
+  --color-ink-2: #131319;
+  --color-ink-3: #1b1b23;
+  --color-ink-4: #24242e;
+  --color-ink-5: #32323e;
+
+  --color-hair: #ffffff14;
+  --color-hair-strong: #ffffff24;
+
+  --color-text-1: #f4f4f6;
+  --color-text-2: #a7a7b4;
+  --color-text-3: #6e6e7d;
+
+  --color-brand: #7c6cff;
+  --color-brand-soft: #a99cff;
+  --color-accent: #ff6ba8;
+
+  --radius-panel: 14px;
+
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background: transparent;
+    color: var(--color-text-1);
+    font-size: 13px;
+    overflow: hidden;
+    user-select: none;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  input,
+  textarea {
+    user-select: text;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #ffffff1a;
+    border-radius: 99px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #ffffff2e;
+    background-clip: content-box;
+  }
+}
+
+@layer components {
+  .panel {
+    background: color-mix(in srgb, var(--color-ink-1) 82%, transparent);
+    border: 1px solid var(--color-hair);
+  }
+
+  .drag-region {
+    -webkit-app-region: drag;
+  }
+  .no-drag {
+    -webkit-app-region: no-drag;
+  }
+
+  /* Checkerboard for transparent-background previews. */
+  .checker {
+    background-image:
+      linear-gradient(45deg, #ffffff0d 25%, transparent 25%),
+      linear-gradient(-45deg, #ffffff0d 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #ffffff0d 75%),
+      linear-gradient(-45deg, transparent 75%, #ffffff0d 75%);
+    background-size: 16px 16px;
+    background-position:
+      0 0,
+      0 8px,
+      8px -8px,
+      -8px 0px;
+  }
+
+  .focus-ring {
+    outline: none;
+  }
+  .focus-ring:focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+}
+
+@keyframes skirin-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes skirin-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-pop {
+  animation: skirin-pop 0.18s var(--ease-out-soft);
+}
+.animate-fade {
+  animation: skirin-fade-in 0.16s ease-out;
+}
