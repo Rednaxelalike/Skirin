@@ -40,19 +40,51 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      # Branch and PR builds: compile and package, but publish nothing.
+      # Always package locally, and never let electron-builder publish. Its
+      # uploader reported success while silently dropping the 100 MB installer
+      # and latest.yml, so the upload happens explicitly below where a failure
+      # is actually visible.
       - name: Build installer and portable exe
-        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
         run: npm run dist
 
-      # Tag builds: electron-builder creates the GitHub release and uploads the
-      # installer together with latest.yml and the .blockmap. Both of those are
-      # what electron-updater reads, so they must not be uploaded by hand.
       - name: Publish GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
-        run: npm run release
+        shell: bash
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+
+          # latest.yml and the blockmap *are* the update feed — electron-updater
+          # reads them to notice a new version and to fetch only the changed
+          # blocks. A release without them strands every installed copy.
+          files=(release/latest.yml release/*.exe release/*.exe.blockmap)
+          for f in "${files[@]}"; do
+            [ -f "$f" ] || { echo "expected artifact missing: $f" >&2; exit 1; }
+          done
+          printf 'uploading:\n'; printf '  %s\n' "${files[@]}"
+
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "${files[@]}" --clobber
+          else
+            gh release create "$tag" --title "Skirin $tag" --generate-notes "${files[@]}"
+          fi
+
+      # Prove the feed landed rather than trusting the upload's exit code,
+      # which is exactly what went wrong the first time.
+      - name: Verify the release carries the update feed
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          names=$(gh release view "$tag" --json assets --jq '.assets[].name')
+          echo "$names"
+          echo "$names" | grep -qx 'latest.yml'  || { echo "release has no latest.yml" >&2; exit 1; }
+          echo "$names" | grep -q  'x64\.exe$'   || { echo "release has no installer" >&2; exit 1; }
+          echo "$names" | grep -q  '\.blockmap$' || { echo "release has no blockmap" >&2; exit 1; }
+          echo "update feed is complete"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4

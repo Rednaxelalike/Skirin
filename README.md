@@ -229,8 +229,12 @@ The workflow refuses to publish if the tag and `package.json` version disagree.
 Building in CI also sidesteps Smart App Control, which blocks the NSIS
 installer step on locked-down Windows 11 machines.
 
-Tag builds run `npm run release`, which lets electron-builder create the
-Release itself. That matters: alongside the installer it uploads `latest.yml`
-and the `.blockmap`, and those two files *are* the update feed. A release
-assembled by hand without them leaves every installed copy stranded on its
-current version.
+Tag builds package locally and then upload `latest.yml`, the installer and
+the `.blockmap` to the Release with `gh`. Those three files *are* the update
+feed — a release missing any of them strands every installed copy on its
+current version — so a final step re-reads the Release from the API and fails
+the build if one is absent.
+
+electron-builder's own `--publish` is deliberately not used: on the v1.0.0 tag
+it exited zero having uploaded only the 0.1 MB blockmap, silently dropping the
+100 MB installer and `latest.yml`.
