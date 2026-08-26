@@ -22,7 +22,7 @@ afterPack: scripts/after-pack.cjs
 publish:
   provider: github
   owner: Rednaxelalike
-  repo: skirin
+  repo: Skirin
   releaseType: release
 
 win:

@@ -27,7 +27,12 @@ import {
   setSettings,
   setWindowBounds
 } from './store'
-import { registerUpdater, startUpdateChecks, stopUpdateChecks } from './updater'
+import {
+  checkForUpdatesNow,
+  registerUpdater,
+  startUpdateChecks,
+  stopUpdateChecks
+} from './updater'
 import type { AppSettings, Capture, ExportFormat, Preset } from '../shared/types'
 
 const isDev = !!process.env['ELECTRON_RENDERER_URL']
@@ -260,6 +265,13 @@ function buildTray(): void {
         { type: 'separator' },
         { label: 'Open Skirin', click: () => showEditor() },
         {
+          label: 'Check for updates…',
+          click: () => {
+            showEditor()
+            void checkForUpdatesNow()
+          }
+        },
+        {
           label: 'Open captures folder',
           click: () => openPath(getSettings().saveDir)
         },
@@ -379,6 +391,13 @@ if (!app.requestSingleInstanceLock()) {
     mainWindow = createMainWindow()
     startUpdateChecks()
     app.on('activate', () => showEditor())
+  })
+
+  // electron-updater emits this on the app object just before it relaunches,
+  // but it is not part of Electron's own event union — hence the cast. Without
+  // it, the tray's hide-instead-of-close guard would block the restart.
+  ;(app as NodeJS.EventEmitter).on('before-quit-for-update', () => {
+    quitting = true
   })
 
   app.on('before-quit', () => {

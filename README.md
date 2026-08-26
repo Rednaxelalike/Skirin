@@ -27,10 +27,11 @@ not code-signed: choose **More info → Run anyway**.
 
 The installer build keeps itself current. Skirin checks GitHub Releases twelve
 seconds after launch and every six hours after that; when a newer version is
-published an **Update** pill appears in the title bar. Nothing downloads until
-you click it, and nothing installs until you choose **Restart** — or until you
-quit Skirin normally, at which point the pending update is applied in the
-background.
+published an **Update** pill appears in the title bar.
+
+That pill is the whole interaction. One click downloads the update, installs it
+and relaunches Skirin — there is no second button. Nothing is downloaded before
+you ask for it, and `Check for updates…` in the tray menu forces a look.
 
 Downloads are differential: electron-updater compares block maps and pulls only
 the parts of the installer that actually changed, so a patch release is usually

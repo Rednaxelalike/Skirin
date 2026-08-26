@@ -30,17 +30,18 @@ export function useUpdateStatus(): UpdateStatus {
     }
   }, [])
 
-  // One toast per version, the moment a build is ready to install.
+  // One toast per version, once the download lands. The main process restarts
+  // on its own a beat later; the action is only here in case that stalls.
   const announced = React.useRef<string | null>(null)
   React.useEffect(() => {
     if (status.state !== 'ready' || !status.version) return
     if (announced.current === status.version) return
     announced.current = status.version
-    toast.success(`Skirin ${status.version} is ready`, {
-      description: 'Restart to finish installing.',
-      duration: 10_000,
+    toast.success(`Skirin ${status.version} downloaded`, {
+      description: 'Restarting to finish installing…',
+      duration: 12_000,
       action: {
-        label: 'Restart',
+        label: 'Restart now',
         onClick: () => void window.skirin.update.install()
       }
     })
@@ -50,8 +51,9 @@ export function useUpdateStatus(): UpdateStatus {
 }
 
 /**
- * Only visible when there is something to say — an available build, a download
- * in flight, or an install waiting on a restart.
+ * Only visible when there is something to say. One click on Update carries the
+ * whole way through — download, install, relaunch — so there is no second
+ * button to hunt for.
  */
 export function UpdatePill(): React.JSX.Element | null {
   const status = useUpdateStatus()
@@ -64,11 +66,17 @@ export function UpdatePill(): React.JSX.Element | null {
     'no-drag focus-ring flex h-7 items-center gap-1.5 rounded-lg px-2 text-[11.5px] font-medium transition-colors'
 
   if (status.state === 'available') {
+    const start = (): void => {
+      toast.info(`Updating to Skirin ${status.version}`, {
+        description: 'Downloading now — Skirin will restart when it lands.'
+      })
+      void window.skirin.update.download()
+    }
     return (
       <button
-        onClick={() => void window.skirin.update.download()}
+        onClick={start}
         className={`${base} bg-brand/15 text-brand hover:bg-brand/25`}
-        title={`Skirin ${status.version} is available`}
+        title={`Skirin ${status.version} is available — click to install it`}
       >
         <ArrowUpCircle size={13} />
         Update
@@ -78,7 +86,10 @@ export function UpdatePill(): React.JSX.Element | null {
 
   if (status.state === 'downloading') {
     return (
-      <span className={`${base} bg-white/6 text-text-2`} title="Downloading the update">
+      <span
+        className={`${base} bg-white/6 text-text-2`}
+        title="Downloading — Skirin restarts automatically when this finishes"
+      >
         <Loader2 size={13} className="animate-spin" />
         <span className="font-mono tabular-nums">{status.percent}%</span>
       </span>
@@ -89,10 +100,10 @@ export function UpdatePill(): React.JSX.Element | null {
     <button
       onClick={() => void window.skirin.update.install()}
       className={`${base} bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25`}
-      title={`Restart to install Skirin ${status.version}`}
+      title={`Restarting into Skirin ${status.version}`}
     >
       <RotateCw size={13} />
-      Restart
+      Restarting…
     </button>
   )
 }

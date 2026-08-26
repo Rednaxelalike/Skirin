@@ -53,10 +53,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Rednaxelalike/skirin.git"
+    "url": "git+https://github.com/Rednaxelalike/Skirin.git"
   },
-  "homepage": "https://github.com/Rednaxelalike/skirin",
+  "homepage": "https://github.com/Rednaxelalike/Skirin",
   "bugs": {
-    "url": "https://github.com/Rednaxelalike/skirin/issues"
+    "url": "https://github.com/Rednaxelalike/Skirin/issues"
   }
 }

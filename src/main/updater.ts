@@ -11,6 +11,12 @@ const CHECK_INTERVAL = 6 * 60 * 60 * 1000
 
 let status: UpdateStatus = { state: 'idle', version: null, notes: null, percent: 0, error: null }
 let timer: NodeJS.Timeout | null = null
+/**
+ * Set when the user clicks Update. One click is meant to carry the whole way
+ * through — download, install, relaunch — so the download completing is what
+ * triggers the install rather than a second button.
+ */
+let installWhenReady = false
 
 /**
  * electron-builder bakes the publish target into `app-update.yml`, so reading
@@ -68,28 +74,22 @@ export function registerUpdater(): void {
     broadcast({ state: 'downloading', percent: Math.round(progress.percent) })
   )
 
-  autoUpdater.on('update-downloaded', (info) =>
+  autoUpdater.on('update-downloaded', (info) => {
     broadcast({ state: 'ready', version: info.version, percent: 100, error: null })
-  )
+    if (!installWhenReady) return
+    installWhenReady = false
+    // A beat so the renderer can paint "Restarting…" before the window goes.
+    setTimeout(() => autoUpdater.quitAndInstall(false, true), 700)
+  })
 
-  autoUpdater.on('error', (error) =>
+  autoUpdater.on('error', (error) => {
+    installWhenReady = false
     broadcast({ state: 'error', error: error?.message ?? 'Update check failed' })
-  )
+  })
 
   ipcMain.handle('update:status', () => status)
 
-  ipcMain.handle('update:check', async () => {
-    if (!canSelfUpdate()) {
-      await shell.openExternal(releasesUrl())
-      return status
-    }
-    try {
-      await autoUpdater.checkForUpdates()
-    } catch (error) {
-      broadcast({ state: 'error', error: (error as Error).message })
-    }
-    return status
-  })
+  ipcMain.handle('update:check', () => checkForUpdatesNow())
 
   ipcMain.handle('update:download', async () => {
     if (!canSelfUpdate()) {
@@ -97,9 +97,11 @@ export function registerUpdater(): void {
       return status
     }
     try {
+      installWhenReady = true
       broadcast({ state: 'downloading', percent: 0, error: null })
       await autoUpdater.downloadUpdate()
     } catch (error) {
+      installWhenReady = false
       broadcast({ state: 'error', error: (error as Error).message })
     }
     return status
@@ -113,6 +115,23 @@ export function registerUpdater(): void {
   })
 
   ipcMain.handle('update:open-releases', () => shell.openExternal(releasesUrl()))
+}
+
+/**
+ * A check the user asked for, so it reports back either way — including
+ * "you're up to date", which the quiet background check swallows.
+ */
+export async function checkForUpdatesNow(): Promise<UpdateStatus> {
+  if (!canSelfUpdate()) {
+    await shell.openExternal(releasesUrl())
+    return status
+  }
+  try {
+    await autoUpdater.checkForUpdates()
+  } catch (error) {
+    broadcast({ state: 'error', error: (error as Error).message })
+  }
+  return status
 }
 
 /** Quiet background checks — the renderer only hears about actual findings. */
