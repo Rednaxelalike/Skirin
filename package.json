@@ -1,23 +1,25 @@
 {
   "name": "skirin",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "description": "Skirin — a beautiful, native-feeling screenshot studio for Windows",
-  "main": "./out/main/index.js",
   "author": "Skirin",
   "license": "MIT",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "node scripts/make-icons.mjs && electron-vite dev",
-    "start": "electron-vite preview",
-    "build": "node scripts/make-icons.mjs && electron-vite build",
-    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
-    "dist": "node scripts/make-icons.mjs && electron-vite build && electron-builder --win --publish never",
-    "dist:portable": "node scripts/make-icons.mjs && electron-vite build && electron-builder --win portable --publish never",
-    "dist:zip": "node scripts/make-icons.mjs && electron-vite build && electron-builder --win zip --publish never",
-    "icons": "node scripts/make-icons.mjs"
+    "dev": "tauri dev",
+    "dev:renderer": "node scripts/make-icons.mjs && vite",
+    "build": "tauri build",
+    "build:renderer": "node scripts/make-icons.mjs && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "icons": "node scripts/make-icons.mjs",
+    "tauri": "tauri"
   },
   "dependencies": {
-    "electron-updater": "^6.8.9"
+    "@tauri-apps/api": "^2.9.1",
+    "@tauri-apps/plugin-dialog": "^2.4.1",
+    "@tauri-apps/plugin-opener": "^2.5.1"
   },
   "devDependencies": {
     "@radix-ui/react-dialog": "^1.1.6",
@@ -30,14 +32,12 @@
     "@radix-ui/react-tabs": "^1.1.3",
     "@radix-ui/react-tooltip": "^1.1.8",
     "@tailwindcss/vite": "^4.3.3",
+    "@tauri-apps/cli": "^2.9.1",
     "@types/node": "^26.3.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
     "@vitejs/plugin-react": "^5.2.0",
     "clsx": "^2.1.1",
-    "electron": "^44.0.0",
-    "electron-builder": "^26.15.3",
-    "electron-vite": "^5.0.0",
     "lucide-react": "^1.34.0",
     "motion": "^13.1.1",
     "react": "^19.2.8",
@@ -57,5 +57,8 @@
   "homepage": "https://github.com/Rednaxelalike/Skirin",
   "bugs": {
     "url": "https://github.com/Rednaxelalike/Skirin/issues"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true
   }
 }

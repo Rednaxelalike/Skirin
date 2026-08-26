@@ -12,6 +12,15 @@ interface Selection {
 const LOUPE = 132
 const LOUPE_ZOOM = 8
 
+/**
+ * The area-selection overlay, one instance per monitor.
+ *
+ * Coordinates come in from the backend as physical pixels in virtual-desktop
+ * space, and everything the DOM deals with is CSS pixels local to this
+ * monitor. `toLocal` and `toScreen` are the only two places that conversion
+ * happens; keeping it at the edges is what makes a mixed-DPI setup behave,
+ * where the Electron build had to guess at a shared DIP space.
+ */
 export function Overlay(): React.JSX.Element | null {
   const [init, setInit] = React.useState<OverlayInit | null>(null)
   const [image, setImage] = React.useState<HTMLImageElement | null>(null)
@@ -19,7 +28,7 @@ export function Overlay(): React.JSX.Element | null {
   const [inside, setInside] = React.useState(false)
   const [selection, setSelection] = React.useState<Selection | null>(null)
   const [dragging, setDragging] = React.useState(false)
-  const [hovered, setHovered] = React.useState<Rect | null>(null)
+  const [hovered, setHovered] = React.useState<Selection | null>(null)
   const [colorLocked, setColorLocked] = React.useState<string | null>(null)
 
   const originRef = React.useRef<{ x: number; y: number } | null>(null)
@@ -29,17 +38,29 @@ export function Overlay(): React.JSX.Element | null {
   /* ------------------------------ bootstrap ----------------------------- */
 
   React.useEffect(() => {
-    const off = window.skirin.overlay.onInit((payload) => {
+    let cancelled = false
+
+    // Pulled, not pushed: the backend keeps this window's payload keyed by its
+    // label, so there is no race with the listener being attached.
+    void window.skirin.overlay.init().then((payload) => {
+      if (cancelled || !payload) return
       setInit(payload)
+
       const img = new Image()
+      img.crossOrigin = 'anonymous'
+      // Only reveal the window once the frozen frame has decoded, or it
+      // flashes an empty transparent pane over the desktop first.
       img.onload = () => {
         setImage(img)
         window.skirin.overlay.ready()
       }
       img.onerror = () => window.skirin.overlay.ready()
-      img.src = payload.dataUrl
+      img.src = payload.src
     })
-    return off
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   // Another monitor took over the pointer — drop our local highlight.
@@ -52,25 +73,55 @@ export function Overlay(): React.JSX.Element | null {
     []
   )
 
-  /* ------------------------------- helpers ------------------------------ */
+  /* ------------------------------ geometry ------------------------------ */
+
+  /** This monitor in CSS pixels. */
+  const size = React.useMemo(() => {
+    if (!init) return { width: 0, height: 0 }
+    return {
+      width: init.bounds.width / init.scaleFactor,
+      height: init.bounds.height / init.scaleFactor
+    }
+  }, [init])
+
+  const toLocal = React.useCallback(
+    (rect: Rect): Selection | null => {
+      if (!init) return null
+      return {
+        x: (rect.x - init.bounds.x) / init.scaleFactor,
+        y: (rect.y - init.bounds.y) / init.scaleFactor,
+        w: rect.width / init.scaleFactor,
+        h: rect.height / init.scaleFactor
+      }
+    },
+    [init]
+  )
+
+  const toScreen = React.useCallback(
+    (rect: Selection): Rect | null => {
+      if (!init) return null
+      return {
+        x: Math.round(init.bounds.x + rect.x * init.scaleFactor),
+        y: Math.round(init.bounds.y + rect.y * init.scaleFactor),
+        width: Math.max(1, Math.round(rect.w * init.scaleFactor)),
+        height: Math.max(1, Math.round(rect.h * init.scaleFactor))
+      }
+    },
+    [init]
+  )
 
   const localWindows = React.useMemo(() => {
     if (!init) return []
     return init.windows
-      .map((r) => ({
-        x: r.x - init.bounds.x,
-        y: r.y - init.bounds.y,
-        width: r.width,
-        height: r.height
-      }))
-      .filter((r) => r.width > 40 && r.height > 40)
-  }, [init])
+      .map(toLocal)
+      .filter((r): r is Selection => !!r && r.w > 40 && r.h > 40)
+  }, [init, toLocal])
 
   const windowUnder = React.useCallback(
-    (x: number, y: number): Rect | null => {
+    (x: number, y: number): Selection | null => {
       // The list is z-ordered front-to-back, so the first hit is the top window.
       for (const r of localWindows) {
-        if (x >= r.x && x <= r.x + r.width && y >= r.y && y <= r.y + r.height) return r
+        if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) return r
       }
       return null
     },
@@ -84,17 +135,18 @@ export function Overlay(): React.JSX.Element | null {
         window.skirin.overlay.cancel()
         return
       }
-      window.skirin.overlay.confirm(
-        {
-          x: init.bounds.x + rect.x,
-          y: init.bounds.y + rect.y,
-          width: rect.w,
-          height: rect.h
-        },
-        label
-      )
+      // Clamped to this monitor: a drag that overshoots an edge should stop at
+      // it rather than crop out of the neighbouring screen's frame.
+      const clamped: Selection = {
+        x: clamp(rect.x, 0, size.width),
+        y: clamp(rect.y, 0, size.height),
+        w: Math.min(rect.w, size.width - clamp(rect.x, 0, size.width)),
+        h: Math.min(rect.h, size.height - clamp(rect.y, 0, size.height))
+      }
+      const screen = toScreen(clamped)
+      if (screen) window.skirin.overlay.confirm(screen, label)
     },
-    [init]
+    [init, size, toScreen]
   )
 
   /* ------------------------------- pointer ------------------------------ */
@@ -106,7 +158,10 @@ export function Overlay(): React.JSX.Element | null {
       const p = { x: event.clientX, y: event.clientY }
       setPointer(p)
       setInside(true)
-      window.skirin.overlay.broadcastCursor({ x: init.bounds.x + p.x, y: init.bounds.y + p.y })
+      window.skirin.overlay.broadcastCursor({
+        x: init.bounds.x + p.x * init.scaleFactor,
+        y: init.bounds.y + p.y * init.scaleFactor
+      })
 
       const origin = originRef.current
       if (origin) {
@@ -141,15 +196,7 @@ export function Overlay(): React.JSX.Element | null {
         // A plain click grabs the window beneath the cursor.
         const target = windowUnder(origin.x, origin.y)
         if (target) {
-          commit(
-            {
-              x: clamp(target.x, 0, init.bounds.width),
-              y: clamp(target.y, 0, init.bounds.height),
-              w: Math.min(target.width, init.bounds.width - Math.max(0, target.x)),
-              h: Math.min(target.height, init.bounds.height - Math.max(0, target.y))
-            },
-            'Window'
-          )
+          commit(target, 'Window')
           return
         }
         setSelection(null)
@@ -169,25 +216,20 @@ export function Overlay(): React.JSX.Element | null {
       }
       if (event.key === 'Enter') {
         if (selection && selection.w > 3) commit(selection, 'Selection')
-        else if (hovered) {
-          commit({ x: hovered.x, y: hovered.y, w: hovered.width, h: hovered.height }, 'Window')
-        }
+        else if (hovered) commit(hovered, 'Window')
         return
       }
       if (event.key.toLowerCase() === 'f') {
-        commit({ x: 0, y: 0, w: init.bounds.width, h: init.bounds.height }, 'Display')
+        commit({ x: 0, y: 0, w: size.width, h: size.height }, 'Display')
         return
       }
       if (event.key.toLowerCase() === 'r' && init.lastRegion) {
-        const r = init.lastRegion
-        commit(
-          { x: r.x - init.bounds.x, y: r.y - init.bounds.y, w: r.width, h: r.height },
-          'Last region'
-        )
+        const local = toLocal(init.lastRegion)
+        if (local) commit(local, 'Last region')
         return
       }
       if (event.key.toLowerCase() === 'c') {
-        const hex = sampleColor(image, init, pointer)
+        const hex = sampleColor(image, size.width, pointer)
         if (hex) {
           setColorLocked(hex)
           void navigator.clipboard.writeText(hex).catch(() => undefined)
@@ -205,7 +247,7 @@ export function Overlay(): React.JSX.Element | null {
       window.removeEventListener('pointerup', onUp)
       window.removeEventListener('keydown', onKey)
     }
-  }, [init, image, windowUnder, commit, selection, hovered, pointer])
+  }, [init, image, windowUnder, commit, selection, hovered, pointer, size, toLocal])
 
   /* -------------------------------- loupe ------------------------------- */
 
@@ -221,7 +263,7 @@ export function Overlay(): React.JSX.Element | null {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.imageSmoothingEnabled = false
 
-    const scale = image.naturalWidth / init.bounds.width
+    const scale = image.naturalWidth / size.width
     const span = LOUPE / LOUPE_ZOOM
     const sx = pointer.x * scale - (span * scale) / 2
     const sy = pointer.y * scale - (span * scale) / 2
@@ -249,27 +291,22 @@ export function Overlay(): React.JSX.Element | null {
       LOUPE_ZOOM,
       LOUPE_ZOOM
     )
-  }, [image, init, pointer, inside])
+  }, [image, init, pointer, inside, size])
 
   if (!init) return null
 
-  const hex = colorLocked ?? sampleColor(image, init, pointer) ?? '#000000'
-  const highlight =
-    selection && (dragging || selection.w > 3)
-      ? selection
-      : hovered
-        ? { x: hovered.x, y: hovered.y, w: hovered.width, h: hovered.height }
-        : null
+  const hex = colorLocked ?? sampleColor(image, size.width, pointer) ?? '#000000'
+  const highlight = selection && (dragging || selection.w > 3) ? selection : hovered
 
   const loupePlacement = {
-    left: clamp(pointer.x + 22, 8, init.bounds.width - LOUPE - 8),
-    top: clamp(pointer.y + 22, 8, init.bounds.height - LOUPE - 62)
+    left: clamp(pointer.x + 22, 8, size.width - LOUPE - 8),
+    top: clamp(pointer.y + 22, 8, size.height - LOUPE - 62)
   }
 
   return (
     <div className="fixed inset-0 select-none overflow-hidden">
       <img
-        src={init.dataUrl}
+        src={init.src}
         alt=""
         draggable={false}
         className="absolute inset-0 h-full w-full object-fill"
@@ -338,11 +375,13 @@ export function Overlay(): React.JSX.Element | null {
         <div
           className="pointer-events-none absolute rounded-md bg-black/78 px-2 py-1 font-mono text-[11px] tabular-nums text-white shadow-lg backdrop-blur-sm"
           style={{
-            left: clamp(highlight.x, 6, init.bounds.width - 120),
+            left: clamp(highlight.x, 6, size.width - 120),
             top: highlight.y > 30 ? highlight.y - 26 : highlight.y + highlight.h + 8
           }}
         >
-          {Math.round(highlight.w)} × {Math.round(highlight.h)}
+          {/* Reported in real pixels, which is what the exported file will be. */}
+          {Math.round(highlight.w * init.scaleFactor)} ×{' '}
+          {Math.round(highlight.h * init.scaleFactor)}
         </div>
       )}
 
@@ -366,7 +405,8 @@ export function Overlay(): React.JSX.Element | null {
             </span>
           </div>
           <div className="border-t border-white/15 px-2 py-1 font-mono text-[9.5px] text-white/45">
-            {Math.round(pointer.x)}, {Math.round(pointer.y)}
+            {Math.round(pointer.x * init.scaleFactor)},{' '}
+            {Math.round(pointer.y * init.scaleFactor)}
           </div>
         </div>
       )}
@@ -393,12 +433,17 @@ function Key({ children }: { children: React.ReactNode }): React.JSX.Element {
 
 let sampler: CanvasRenderingContext2D | null = null
 
+/**
+ * Reads one pixel out of the frozen frame. The frame is served cross-origin
+ * from `skirin://`, so the image is loaded with `crossOrigin` set — without it
+ * this canvas is tainted and `getImageData` throws.
+ */
 function sampleColor(
   image: HTMLImageElement | null,
-  init: OverlayInit,
+  cssWidth: number,
   point: { x: number; y: number }
 ): string | null {
-  if (!image || point.x < 0) return null
+  if (!image || point.x < 0 || cssWidth <= 0) return null
   if (!sampler) {
     const canvas = document.createElement('canvas')
     canvas.width = 1
@@ -406,7 +451,7 @@ function sampleColor(
     sampler = canvas.getContext('2d', { willReadFrequently: true })
   }
   if (!sampler) return null
-  const scale = image.naturalWidth / init.bounds.width
+  const scale = image.naturalWidth / cssWidth
   try {
     sampler.clearRect(0, 0, 1, 1)
     sampler.drawImage(image, point.x * scale, point.y * scale, 1, 1, 0, 0, 1, 1)

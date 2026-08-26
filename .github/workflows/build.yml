@@ -23,29 +23,115 @@ jobs:
           node-version: 22
           cache: npm
 
+      - uses: dtolnay/rust-toolchain@stable
+
+      # Rust dominates the build; without this every run recompiles the whole
+      # dependency graph from scratch.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
       - name: Install dependencies
         run: npm ci
 
-      - name: Check the tag matches package.json
+      - name: Check the tag matches the manifests
         if: startsWith(github.ref, 'refs/tags/v')
         shell: bash
         run: |
-          pkg="v$(node -p "require('./package.json').version")"
           tag="${GITHUB_REF#refs/tags/}"
-          if [ "$pkg" != "$tag" ]; then
-            echo "Tag $tag does not match package.json version $pkg" >&2
-            exit 1
-          fi
+          pkg="v$(node -p "require('./package.json').version")"
+          cfg="v$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          # package.json, tauri.conf.json and the tag all carry the version.
+          # A mismatch ships an installer that reports the wrong one and an
+          # update feed that never resolves.
+          for name in pkg cfg; do
+            value="${!name}"
+            if [ "$value" != "$tag" ]; then
+              echo "$name is $value but the tag is $tag" >&2
+              exit 1
+            fi
+          done
 
       - name: Typecheck
         run: npm run typecheck
 
-      # Always package locally, and never let electron-builder publish. Its
-      # uploader reported success while silently dropping the 100 MB installer
-      # and latest.yml, so the upload happens explicitly below where a failure
-      # is actually visible.
-      - name: Build installer and portable exe
-        run: npm run dist
+      # The icons are generated, not committed, and the tray glyph is baked
+      # into the binary with `include_bytes!` — so clippy needs them on disk
+      # before it can compile anything.
+      - name: Generate icons
+        run: npm run icons
+
+      - name: Check Rust formatting
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
+
+      - name: Lint Rust
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+
+      - name: Build
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: npm run build
+
+      # Two feeds, deliberately. `latest.json` is what Skirin 2.x reads. The
+      # hand-built `latest.yml` is what every already-installed 1.x copy reads,
+      # and it points at this same NSIS installer — so the Electron build
+      # updates itself into the Tauri one instead of silently stalling on a
+      # feed that will never appear again.
+      - name: Assemble the release feeds
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+          out=src-tauri/target/release/bundle/nsis
+          mkdir -p release
+
+          setup="$(ls "$out"/*-setup.exe)"
+          cp "$setup" "$out"/*-setup.exe.sig release/
+
+          # The bare executable doubles as the portable download: a Tauri
+          # binary needs nothing beside it but the WebView2 runtime, which
+          # every supported Windows already ships.
+          cp src-tauri/target/release/skirin.exe "release/Skirin-$version-portable.exe"
+
+          name="$(basename "$setup")"
+          hash="$(openssl dgst -sha512 -binary "$setup" | openssl base64 -A)"
+          size="$(stat -c%s "$setup")"
+          url="https://github.com/${GITHUB_REPOSITORY}/releases/download/v${version}/${name}"
+          stamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+          # `tauri build` emits the installer and its detached signature but no
+          # feed — latest.json is normally written by tauri-action, which this
+          # workflow does not use. It is four fields, so it is written here
+          # rather than taking on that action just for the manifest.
+          node -e '
+            const fs = require("fs")
+            const [version, url, sig, stamp] = process.argv.slice(1)
+            fs.writeFileSync("release/latest.json", JSON.stringify({
+              version,
+              pub_date: stamp,
+              platforms: {
+                "windows-x86_64": {
+                  signature: fs.readFileSync(sig, "utf8").trim(),
+                  url
+                }
+              }
+            }, null, 2))
+          ' "$version" "$url" "release/$(basename "$setup").sig" "$stamp"
+
+          cat > release/latest.yml <<YML
+          version: ${version}
+          files:
+            - url: ${url}
+              sha512: ${hash}
+              size: ${size}
+          path: ${url}
+          sha512: ${hash}
+          releaseDate: '${stamp}'
+          YML
+
+          echo "release contents:"; ls -la release
 
       - name: Publish GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
@@ -53,16 +139,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
           tag="${GITHUB_REF#refs/tags/}"
-
-          # latest.yml and the blockmap *are* the update feed — electron-updater
-          # reads them to notice a new version and to fetch only the changed
-          # blocks. A release without them strands every installed copy.
-          files=(release/latest.yml release/*.exe release/*.exe.blockmap)
+          files=(release/latest.json release/latest.yml release/*.exe release/*.sig)
           for f in "${files[@]}"; do
             [ -f "$f" ] || { echo "expected artifact missing: $f" >&2; exit 1; }
           done
-          printf 'uploading:\n'; printf '  %s\n' "${files[@]}"
 
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release upload "$tag" "${files[@]}" --clobber
@@ -70,28 +152,29 @@ jobs:
             gh release create "$tag" --title "Skirin $tag" --generate-notes "${files[@]}"
           fi
 
-      # Prove the feed landed rather than trusting the upload's exit code,
-      # which is exactly what went wrong the first time.
-      - name: Verify the release carries the update feed
+      # Prove the feeds landed rather than trusting the upload's exit code.
+      # A release missing either one strands a whole population of installs.
+      - name: Verify both update feeds are present
         if: startsWith(github.ref, 'refs/tags/v')
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
           tag="${GITHUB_REF#refs/tags/}"
           names=$(gh release view "$tag" --json assets --jq '.assets[].name')
           echo "$names"
-          echo "$names" | grep -qx 'latest.yml'  || { echo "release has no latest.yml" >&2; exit 1; }
-          echo "$names" | grep -q  'x64\.exe$'   || { echo "release has no installer" >&2; exit 1; }
-          echo "$names" | grep -q  '\.blockmap$' || { echo "release has no blockmap" >&2; exit 1; }
-          echo "update feed is complete"
+          echo "$names" | grep -qx 'latest.json' || { echo "no Tauri feed"    >&2; exit 1; }
+          echo "$names" | grep -qx 'latest.yml'  || { echo "no Electron feed" >&2; exit 1; }
+          echo "$names" | grep -q  'setup\.exe$' || { echo "no installer"     >&2; exit 1; }
+          echo "$names" | grep -q  '\.sig$'      || { echo "no signature"     >&2; exit 1; }
+          echo "both update feeds are complete"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: skirin-windows
           path: |
-            release/*.exe
-            release/*.blockmap
-            release/latest.yml
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/skirin.exe
           if-no-files-found: error

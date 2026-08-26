@@ -182,9 +182,22 @@ function encodeIco(entries) {
 
 const sizes = [16, 24, 32, 48, 64, 128, 256]
 const pngs = sizes.map((size) => ({ size, png: encodePng(render(size), size) }))
+const at = (size) => pngs.find((p) => p.size === size).png
 
-writeFileSync(join(outDir, 'icon.png'), pngs.find((p) => p.size === 256).png)
-writeFileSync(join(outDir, 'tray.png'), pngs.find((p) => p.size === 32).png)
+writeFileSync(join(outDir, 'icon.png'), at(256))
+writeFileSync(join(outDir, 'tray.png'), at(32))
 writeFileSync(join(outDir, 'icon.ico'), encodeIco(pngs))
 
-console.log(`icons written to ${outDir}`)
+// The bundler reads its own set out of src-tauri/icons: the .ico becomes the
+// executable's Windows resource, and the PNGs are what the installer and the
+// tray hand to the shell.
+const tauriDir = join(here, '..', 'src-tauri', 'icons')
+mkdirSync(tauriDir, { recursive: true })
+writeFileSync(join(tauriDir, '32x32.png'), at(32))
+writeFileSync(join(tauriDir, '128x128.png'), at(128))
+writeFileSync(join(tauriDir, '128x128@2x.png'), at(256))
+writeFileSync(join(tauriDir, 'icon.png'), at(256))
+writeFileSync(join(tauriDir, 'tray.png'), at(32))
+writeFileSync(join(tauriDir, 'icon.ico'), encodeIco(pngs))
+
+console.log(`icons written to ${outDir} and ${tauriDir}`)

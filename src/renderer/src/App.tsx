@@ -69,7 +69,7 @@ export function App(): React.JSX.Element {
   React.useEffect(() => window.skirin.ui.onOpenWindowPicker(() => setWindows(true)), [])
   React.useEffect(() => window.skirin.ui.onOpenSettings(() => setSettingsOpen(true)), [])
 
-  // Keep the decoded background bitmap in step with the stored data URL.
+  // Keep the decoded background bitmap in step with the stored source.
   React.useEffect(() => {
     void setSceneImage('background', backgroundSrc)
   }, [backgroundSrc])
@@ -115,14 +115,14 @@ export function App(): React.JSX.Element {
             return
           case 'o':
             event.preventDefault()
-            void window.skirin.image.open().then((dataUrl) => {
-              if (dataUrl) void loadImageSource(dataUrl, 'Imported image')
+            void window.skirin.image.open().then((opened) => {
+              if (opened) void loadImageSource(opened.src, 'Imported image')
             })
             return
           case 'v':
             event.preventDefault()
-            void window.skirin.image.paste().then((dataUrl) => {
-              if (dataUrl) void loadImageSource(dataUrl, 'Clipboard')
+            void window.skirin.image.paste().then((pasted) => {
+              if (pasted) void loadImageSource(pasted.src, 'Clipboard')
               else toast.info('No image on the clipboard')
             })
             return

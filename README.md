@@ -14,9 +14,13 @@ snaps to real windows.
 
 Grab the latest build from the [Releases page](../../releases):
 
-- `Skirin-<version>-x64.exe` — the installer. Pick an install folder, get a
-  Start menu and desktop shortcut.
-- `Skirin-<version>-portable.exe` — no install, run it from anywhere.
+- `Skirin_<version>_x64-setup.exe` — the installer. Start menu and desktop
+  shortcuts, and it can update itself.
+- `Skirin-<version>-portable.exe` — no install, run it from anywhere. It is
+  the same binary the installer places, about 6 MB.
+
+Both need the WebView2 runtime, which every supported Windows 11 already has;
+the installer fetches it on the rare machine that does not.
 
 Windows will show a SmartScreen warning the first time, because the build is
 not code-signed: choose **More info → Run anyway**.
@@ -33,9 +37,9 @@ That pill is the whole interaction. One click downloads the update, installs it
 and relaunches Skirin — there is no second button. Nothing is downloaded before
 you ask for it, and `Check for updates…` in the tray menu forces a look.
 
-Downloads are differential: electron-updater compares block maps and pulls only
-the parts of the installer that actually changed, so a patch release is usually
-a couple of megabytes rather than the full download.
+Every update is signed, and the signature is checked before anything is run.
+The whole installer is fetched rather than a delta, which for a ~6 MB build is
+a smaller download than the deltas the Electron version used to pull.
 
 The **portable** exe cannot update itself — there is no installer to hand the
 download to — so it opens the Releases page instead.
@@ -52,14 +56,19 @@ npm install
 npm run dev
 ```
 
-Build an installer and a portable exe into `release/`:
+Build the installer and the standalone exe:
 
 ```bash
-npm run dist
+npm run build
 ```
 
-Other scripts: `npm run build` (bundle only), `npm run start` (preview the
-bundle), `npm run typecheck`, `npm run icons` (regenerate the app icons).
+Building needs a Rust toolchain (`rustup`, stable MSVC) and the Visual Studio
+Build Tools with the C++ workload — the editor is TypeScript, but everything
+under `src-tauri/` is Rust.
+
+Other scripts: `npm run build:renderer` (editor bundle only),
+`npm run dev:renderer` (Vite alone, no app window), `npm run typecheck`,
+`npm run icons` (regenerate the app icons).
 
 ---
 
@@ -152,19 +161,15 @@ captures folder, or save-as. Saving copies to the clipboard too.
 
 ## How it is put together
 
+The editor is a React app in a WebView2 surface. Everything the editor cannot
+do itself — capture, the overlay windows, the tray, hotkeys, files — is Rust.
+
 ```
 src/
-  shared/          types + defaults shared across all three processes
-  main/
-    index.ts       lifecycle, windows, tray, global shortcuts, IPC
-    capture.ts     desktopCapturer wrappers, display/window grabs, cropping
-    overlay.ts     per-display selection overlays and their lifecycle
-    winapi.ts      z-ordered window enumeration through user32/dwmapi
-    files.ts       save, clipboard, dialogs, capture history
-    store.ts       JSON settings/preset/history persistence
-  preload/         the single `window.skirin` bridge
+  shared/types.ts  the contract between the two halves
   renderer/
     src/lib/
+      bridge.ts    window.skirin, implemented over Tauri commands and events
       render.ts    the compositor — background, frame, shadow, watermark
       geometry.ts  projective quads, homographies, perspective texture mapping
       annotations.ts  annotation drawing, hit-testing and handles
@@ -172,9 +177,34 @@ src/
       exporter.ts  encoding and the size budget search
     src/components/  editor UI
     src/overlay/     the selection overlay UI
+src-tauri/src/
+  lib.rs           wiring: plugins, commands, window events
+  app.rs           the main window, and what happens to a capture once it exists
+  overlay.rs       per-monitor selection overlays and their lifecycle
+  capture/
+    wgc.rs         Windows.Graphics.Capture — the frame grabber
+    gdi.rs         BitBlt/PrintWindow fallback
+    monitors.rs    monitor enumeration, physical bounds, per-monitor DPI
+    windows_list.rs  z-ordered window enumeration through user32/dwmapi
+    icons.rs       window icons for the picker
+  snap.rs          WM_NCHITTEST hook, so Snap Layouts still works
+  files.rs         save, clipboard, dialogs, capture history
+  store.rs         JSON settings/preset/history persistence
+  protocol.rs      the skirin:// scheme that serves frames to the webview
 ```
 
-Two details worth knowing:
+Four details worth knowing:
+
+**Pixels never become base64.** A capture is registered in Rust and the editor
+is handed a `skirin://frame/<id>` URL, which the webview streams and decodes
+off the main thread. The Electron build serialised every shot to a data URL —
+roughly 24 MB of string for one 4K screen, built on the main process and parsed
+again in the renderer.
+
+**Physical pixels end to end.** Monitor bounds, window rects and selections are
+all in one virtual-desktop pixel space, so cropping is plain subtraction. The
+old code converted between Chromium's DIP space and Win32 at the boundary,
+which has no single right answer once two monitors run at different scales.
 
 **One renderer, two consumers.** The preview and the export run the exact same
 `renderScene` function at different scales, so what you see is what you get —
@@ -210,8 +240,9 @@ and the update check against the GitHub Releases API.
 
 Screen recording, the Loom-style video studio, transcription and cloud sharing
 are out of scope for this build — Skirin is the screenshot half of that idea.
-The capture layer (`src/main/capture.ts`) already speaks `desktopCapturer`, so
-recording would slot in beside it, but none of it is written yet.
+The capture layer (`src-tauri/src/capture/`) already holds a warm D3D11 device
+and a Windows.Graphics.Capture session, which is exactly what a recorder needs,
+but none of it is written yet.
 
 ---
 
@@ -225,16 +256,16 @@ Release with the installer and the portable exe:
 npm version patch && git push --follow-tags
 ```
 
-The workflow refuses to publish if the tag and `package.json` version disagree.
-Building in CI also sidesteps Smart App Control, which blocks the NSIS
-installer step on locked-down Windows 11 machines.
+The workflow refuses to publish if the tag, `package.json` and
+`tauri.conf.json` do not all agree on the version.
 
-Tag builds package locally and then upload `latest.yml`, the installer and
-the `.blockmap` to the Release with `gh`. Those three files *are* the update
-feed — a release missing any of them strands every installed copy on its
-current version — so a final step re-reads the Release from the API and fails
-the build if one is absent.
+Signing needs two repository secrets: `TAURI_SIGNING_PRIVATE_KEY` and
+`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. Without them the build fails rather than
+shipping an installer no client will accept.
 
-electron-builder's own `--publish` is deliberately not used: on the v1.0.0 tag
-it exited zero having uploaded only the 0.1 MB blockmap, silently dropping the
-100 MB installer and `latest.yml`.
+Tag builds upload **two** update feeds. `latest.json` is the one Skirin 2.x
+reads. `latest.yml` is hand-built to point at the same installer, because
+every Skirin 1.x install in the wild is still an electron-updater client
+watching for that file — pointing it at the Tauri installer is what carries
+those users across the rewrite instead of stranding them. A final step re-reads
+the Release from the API and fails the build if either feed is missing.

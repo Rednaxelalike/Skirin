@@ -54,7 +54,7 @@ export interface EditorState {
 
   /* ------------------------------- actions ------------------------------ */
   loadCapture: (capture: Capture) => Promise<void>
-  loadImageSource: (dataUrl: string, name: string) => Promise<void>
+  loadImageSource: (src: string, name: string) => Promise<void>
   reset: () => void
 
   snapshot: () => void
@@ -149,7 +149,7 @@ export const useEditor = create<EditorState>((set, get) => {
     busy: null,
 
     async loadCapture(capture) {
-      const image = await loadImage(capture.dataUrl)
+      const image = await loadImage(capture.src)
       const trim = detectTrim(image, capture.width, capture.height)
       const scene = defaultScene()
 
@@ -185,11 +185,11 @@ export const useEditor = create<EditorState>((set, get) => {
       })
     },
 
-    async loadImageSource(dataUrl, name) {
-      const image = await loadImage(dataUrl)
+    async loadImageSource(src, name) {
+      const image = await loadImage(src)
       await get().loadCapture({
         id: uid('cap-'),
-        dataUrl,
+        src,
         width: image.naturalWidth,
         height: image.naturalHeight,
         scaleFactor: 1,

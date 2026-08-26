@@ -1,7 +1,6 @@
 import type { ExportSettings, Scene } from '@shared/types'
 import { renderScene } from './render'
 import type { SceneImages } from './render'
-import { dataUrlBytes } from './utils'
 
 const MIME: Record<ExportSettings['format'], string> = {
   png: 'image/png',
@@ -10,11 +9,31 @@ const MIME: Record<ExportSettings['format'], string> = {
 }
 
 export interface EncodedImage {
-  dataUrl: string
+  blob: Blob
   bytes: number
   width: number
   height: number
   quality: number
+}
+
+/**
+ * `toBlob` rather than `toDataURL`: the browser encodes off the main thread,
+ * the result never becomes a base64 string, and `blob.size` is the real file
+ * size instead of an estimate derived from string length. That last part
+ * matters here — the size budget below binary-searches against it.
+ */
+function encode(
+  canvas: HTMLCanvasElement,
+  mime: string,
+  quality: number | undefined
+): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error('Could not encode the image'))),
+      mime,
+      quality
+    )
+  })
 }
 
 /**
@@ -26,42 +45,40 @@ export async function encodeCanvas(
   settings: ExportSettings
 ): Promise<EncodedImage> {
   const mime = MIME[settings.format]
-  const encode = (quality: number, source: HTMLCanvasElement = canvas): string =>
-    source.toDataURL(mime, settings.format === 'png' ? undefined : quality)
+  const lossless = settings.format === 'png'
+  const at = (quality: number, source: HTMLCanvasElement = canvas): Promise<Blob> =>
+    encode(source, mime, lossless ? undefined : quality)
 
   let quality = settings.quality
-  let dataUrl = encode(quality)
-  let bytes = dataUrlBytes(dataUrl)
+  let blob = await at(quality)
 
   const budget = settings.maxSizeKb ? settings.maxSizeKb * 1024 : null
-  if (!budget || bytes <= budget) {
-    return { dataUrl, bytes, width: canvas.width, height: canvas.height, quality }
+  if (!budget || blob.size <= budget) {
+    return { blob, bytes: blob.size, width: canvas.width, height: canvas.height, quality }
   }
 
-  if (settings.format !== 'png') {
+  if (!lossless) {
     let low = 0.25
     let high = quality
     for (let i = 0; i < 7 && high - low > 0.02; i++) {
       const mid = (low + high) / 2
-      const candidate = encode(mid)
-      const size = dataUrlBytes(candidate)
-      if (size <= budget) {
+      const candidate = await at(mid)
+      if (candidate.size <= budget) {
         low = mid
-        dataUrl = candidate
-        bytes = size
+        blob = candidate
         quality = mid
       } else {
         high = mid
       }
     }
-    if (bytes <= budget) {
-      return { dataUrl, bytes, width: canvas.width, height: canvas.height, quality }
+    if (blob.size <= budget) {
+      return { blob, bytes: blob.size, width: canvas.width, height: canvas.height, quality }
     }
   }
 
   // Still too heavy — step the resolution down.
   let working = canvas
-  for (let i = 0; i < 6 && bytes > budget; i++) {
+  for (let i = 0; i < 6 && blob.size > budget; i++) {
     const next = document.createElement('canvas')
     next.width = Math.max(1, Math.round(working.width * 0.8))
     next.height = Math.max(1, Math.round(working.height * 0.8))
@@ -70,11 +87,10 @@ export async function encodeCanvas(
     ctx.imageSmoothingQuality = 'high'
     ctx.drawImage(working, 0, 0, next.width, next.height)
     working = next
-    dataUrl = encode(quality, working)
-    bytes = dataUrlBytes(dataUrl)
+    blob = await at(quality, working)
   }
 
-  return { dataUrl, bytes, width: working.width, height: working.height, quality }
+  return { blob, bytes: blob.size, width: working.width, height: working.height, quality }
 }
 
 export async function renderAndEncode(

@@ -1,5 +1,5 @@
 /* ------------------------------------------------------------------ *
- * Skirin — shared types (main <-> preload <-> renderer)
+ * Skirin — shared types (Rust backend <-> bridge <-> editor)
  * ------------------------------------------------------------------ */
 
 export type CaptureKind = 'display' | 'window' | 'area' | 'lastRegion' | 'file' | 'clipboard'
@@ -32,17 +32,26 @@ export interface WindowSource {
   thumbnail: string
 }
 
-/** A raw capture handed from the main process to the editor. */
+/** A raw capture handed from the backend to the editor. */
 export interface Capture {
   id: string
-  dataUrl: string
+  /**
+   * A `skirin://frame/<id>` URL, not a data URL. The pixels stay in Rust and
+   * the webview streams them over the custom protocol, which is why a capture
+   * no longer costs a base64 round-trip in both directions.
+   */
+  src: string
   width: number
   height: number
   scaleFactor: number
   kind: CaptureKind
   sourceName: string
   createdAt: number
-  /** Screen-space rect the capture came from (area captures only). */
+  /**
+   * Where on the virtual desktop this came from, in physical pixels. Set for
+   * area and display captures; absent for a window, a pasted image or a file,
+   * none of which have a fixed place on screen.
+   */
   region?: Rect
 }
 
@@ -365,9 +374,10 @@ export interface SaveResult {
 /** Payload handed to each per-display selection overlay. */
 export interface OverlayInit {
   displayId: number
+  /** Physical pixels, in virtual-desktop space. */
   bounds: Rect
   scaleFactor: number
-  dataUrl: string
+  src: string
   magnifier: boolean
   lastRegion: Rect | null
   windows: Rect[]
@@ -397,7 +407,7 @@ export interface AppInfo {
   arch: string
   saveDir: string
   channel: BuildChannel
-  electron: string
-  chrome: string
-  node: string
+  webview: string
+  tauri: string
+  rustc: string
 }

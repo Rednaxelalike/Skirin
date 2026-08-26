@@ -41,8 +41,8 @@ export function Welcome({ onOpenWindows }: { onOpenWindows: () => void }): React
       title: 'Paste an image',
       hint: 'Ctrl+V',
       run: async () => {
-        const dataUrl = await window.skirin.image.paste()
-        if (dataUrl) await loadImageSource(dataUrl, 'Clipboard')
+        const pasted = await window.skirin.image.paste()
+        if (pasted) await loadImageSource(pasted.src, 'Clipboard')
       }
     }
   ]

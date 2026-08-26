@@ -517,7 +517,7 @@ function AboutSection(): React.JSX.Element | null {
       [
         `Skirin ${info.version} (${info.channel})`,
         `Platform: ${platform}`,
-        `Electron ${info.electron} · Chromium ${info.chrome} · Node ${info.node}`
+        `WebView2 ${info.webview} · Tauri ${info.tauri} · rustc ${info.rustc}`
       ].join('\n')
     )
     toast.success('Version details copied')
@@ -550,9 +550,9 @@ function AboutSection(): React.JSX.Element | null {
       <Row label="Platform">
         <span className="font-mono text-[11px] text-text-2">{platform}</span>
       </Row>
-      <Row label="Runtime" hint="Electron · Chromium · Node">
+      <Row label="Runtime" hint="WebView2 · Tauri · rustc">
         <span className="font-mono text-[11px] text-text-2">
-          {info.electron} · {info.chrome} · {info.node}
+          {info.webview} · {info.tauri} · {info.rustc}
         </span>
       </Row>
       <Row label="Release notes" hint="What changed, on GitHub">

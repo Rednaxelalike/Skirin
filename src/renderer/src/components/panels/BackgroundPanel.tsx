@@ -35,11 +35,11 @@ export function BackgroundPanel(): React.JSX.Element {
   const visible = group === 'All' ? GRADIENTS : GRADIENTS.filter((g) => g.group === group)
 
   const pickImage = async (): Promise<void> => {
-    const dataUrl = await window.skirin.image.open()
-    if (!dataUrl) return
+    const opened = await window.skirin.image.open()
+    if (!opened) return
     snapshot()
-    await setSceneImage('background', dataUrl)
-    patchBackground({ kind: 'image', image: { ...background.image, src: dataUrl } })
+    await setSceneImage('background', opened.src)
+    patchBackground({ kind: 'image', image: { ...background.image, src: opened.src } })
   }
 
   const updateStop = (index: number, patch: Partial<GradientStop>): void => {

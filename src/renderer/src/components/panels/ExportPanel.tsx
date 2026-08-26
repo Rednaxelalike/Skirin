@@ -47,7 +47,7 @@ export function useExporter(): {
         // The Windows clipboard is a bitmap surface — always hand it PNG.
         format: 'png'
       })
-      const ok = await window.skirin.image.copy(encoded.dataUrl)
+      const ok = await window.skirin.image.copy(encoded.blob)
       if (ok) {
         toast.success('Copied to clipboard', {
           description: `${encoded.width} × ${encoded.height} · ${formatBytes(encoded.bytes)}`
@@ -70,7 +70,7 @@ export function useExporter(): {
       const state = useEditor.getState()
       const settings = state.exportSettings
       const encoded = await renderAndEncode(data.scene, data.images, settings)
-      const result = await window.skirin.image.save(encoded.dataUrl, {
+      const result = await window.skirin.image.save(encoded.blob, {
         format: settings.format,
         askWhere,
         suggestedName: suggestedName(data.name),
@@ -85,7 +85,7 @@ export function useExporter(): {
         return
       }
 
-      if (state.settings?.copyOnExport) await window.skirin.image.copy(encoded.dataUrl)
+      if (state.settings?.copyOnExport) await window.skirin.image.copy(encoded.blob)
 
       toast.success('Saved', {
         description: `${encoded.width} × ${encoded.height} · ${formatBytes(encoded.bytes)}`,

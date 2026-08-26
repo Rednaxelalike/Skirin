@@ -49,23 +49,26 @@ export function TitleBar({
   }
 
   const paste = async (): Promise<void> => {
-    const dataUrl = await window.skirin.image.paste()
-    if (!dataUrl) {
+    const pasted = await window.skirin.image.paste()
+    if (!pasted) {
       toast.info('No image on the clipboard')
       return
     }
-    await loadImageSource(dataUrl, 'Clipboard')
+    await loadImageSource(pasted.src, 'Clipboard')
   }
 
   const openFile = async (): Promise<void> => {
-    const dataUrl = await window.skirin.image.open()
-    if (dataUrl) await loadImageSource(dataUrl, 'Imported image')
+    const opened = await window.skirin.image.open()
+    if (opened) await loadImageSource(opened.src, 'Imported image')
   }
 
   const zoomLabel = zoom === 'fit' ? 'Fit' : `${Math.round(zoom * 100)}%`
 
   return (
-    <header className="drag-region flex h-10 shrink-0 items-center gap-1 border-b border-hair bg-ink-1/70 pl-2.5 pr-[148px] backdrop-blur-xl">
+    <header
+      data-tauri-drag-region
+      className="drag-region flex h-10 shrink-0 items-center gap-1 border-b border-hair bg-ink-1/70 pl-2.5 backdrop-blur-xl"
+    >
       <div className="no-drag flex items-center gap-2 pr-1.5">
         <Mark />
         <span className="text-[12.5px] font-semibold tracking-tight text-text-1">Skirin</span>
@@ -178,6 +181,8 @@ export function TitleBar({
           <Settings size={15} />
         </IconButton>
       </Tip>
+
+      <CaptionButtons />
     </header>
   )
 }
@@ -202,5 +207,112 @@ export function CropMarks({ className }: { className?: string }): React.JSX.Elem
         className="text-white"
       />
     </svg>
+  )
+}
+
+/**
+ * Minimise, maximise and close.
+ *
+ * Electron drew these natively through `titleBarOverlay`; Tauri has no
+ * equivalent, so the app owns them. They keep the Windows 11 metrics — 46x40,
+ * a red close button — so muscle memory and the hover targets are unchanged.
+ *
+ * The maximise button reports its bounds to the backend's WM_NCHITTEST hook,
+ * which is what keeps the Snap Layouts flyout appearing on hover.
+ */
+function CaptionButtons(): React.JSX.Element {
+  const [maximized, setMaximized] = React.useState(false)
+  const maxRef = React.useRef<HTMLButtonElement>(null)
+
+  React.useEffect(() => {
+    void window.skirin.window.isMaximized().then(setMaximized)
+    return window.skirin.window.onState(setMaximized)
+  }, [])
+
+  // The backend hit-tests against physical pixels, and the reported rect has
+  // to survive both a resize and a monitor change — a window dragged to a
+  // display at a different scale lands the button somewhere else entirely.
+  React.useEffect(() => {
+    const report = (): void => {
+      const node = maxRef.current
+      if (!node) return
+      const box = node.getBoundingClientRect()
+      const dpr = window.devicePixelRatio || 1
+      window.skirin.window.setCaptionMaxRect(
+        Math.round(box.left * dpr),
+        Math.round(box.top * dpr),
+        Math.round(box.width * dpr),
+        Math.round(box.height * dpr)
+      )
+    }
+
+    report()
+    window.addEventListener('resize', report)
+    return () => window.removeEventListener('resize', report)
+  }, [maximized])
+
+  return (
+    <div className="no-drag ml-1 flex h-10 shrink-0 self-start">
+      <CaptionButton label="Minimize" onClick={() => window.skirin.window.minimize()}>
+        <rect x="3" y="7.5" width="10" height="1" />
+      </CaptionButton>
+
+      <CaptionButton
+        ref={maxRef}
+        label={maximized ? 'Restore' : 'Maximize'}
+        onClick={() => window.skirin.window.toggleMaximize()}
+      >
+        {maximized ? (
+          <>
+            <rect x="3" y="5" width="8" height="8" fill="none" strokeWidth="1" stroke="currentColor" />
+            <path d="M5 5V3h8v8h-2" fill="none" strokeWidth="1" stroke="currentColor" />
+          </>
+        ) : (
+          <rect x="3.5" y="3.5" width="9" height="9" fill="none" strokeWidth="1" stroke="currentColor" />
+        )}
+      </CaptionButton>
+
+      <CaptionButton label="Close" danger onClick={() => window.skirin.window.close()}>
+        <path
+          d="M4 4l8 8M12 4l-8 8"
+          fill="none"
+          strokeWidth="1.1"
+          stroke="currentColor"
+          strokeLinecap="round"
+        />
+      </CaptionButton>
+    </div>
+  )
+}
+
+function CaptionButton({
+  label,
+  onClick,
+  danger,
+  children,
+  ...rest
+}: {
+  label: string
+  onClick: () => void
+  danger?: boolean
+  children: React.ReactNode
+  ref?: React.Ref<HTMLButtonElement>
+} & React.ButtonHTMLAttributes<HTMLButtonElement>): React.JSX.Element {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      className={`flex h-10 w-[46px] items-center justify-center text-text-2 transition-colors ${
+        danger
+          ? 'hover:bg-[#c42b1c] hover:text-white active:bg-[#c42b1c]/80'
+          : 'hover:bg-white/[0.07] hover:text-text-1 active:bg-white/[0.04]'
+      }`}
+      {...rest}
+    >
+      <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden>
+        {children}
+      </svg>
+    </button>
   )
 }

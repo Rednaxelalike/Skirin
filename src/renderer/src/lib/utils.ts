@@ -100,6 +100,11 @@ export function shift(color: string, amount: number): string {
 export function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image()
+    // Captures are served from the `skirin://` protocol, which is a different
+    // origin to the app itself. Without this the canvas the editor draws them
+    // on is tainted, and every export — plus the colour picker and the trim
+    // detector — throws on the first pixel read.
+    if (!src.startsWith('data:') && !src.startsWith('blob:')) img.crossOrigin = 'anonymous'
     img.onload = () => resolve(img)
     img.onerror = () => reject(new Error('Could not decode image'))
     img.src = src
@@ -221,11 +226,4 @@ export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
-}
-
-export function dataUrlBytes(dataUrl: string): number {
-  const comma = dataUrl.indexOf(',')
-  const body = dataUrl.slice(comma + 1)
-  const padding = body.endsWith('==') ? 2 : body.endsWith('=') ? 1 : 0
-  return Math.floor((body.length * 3) / 4) - padding
 }
