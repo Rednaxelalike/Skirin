@@ -106,7 +106,17 @@ const PANE_SMALL = { half: 0.298, radius: 0.122, bevel: 0.062, slope: 1.5 }
    along this vector and painting the difference is what gives the slab a
    visible side wall — the thing that separates an object from a sticker. */
 const SLAB = { dx: 0.009, dy: 0.038 }
-const CROP = { half: 0.356, radius: 0.058, stroke: 0.0165, wall: 0.014, gap: 0.198 }
+const CROP = {
+  half: 0.356,
+  radius: 0.058,
+  stroke: 0.0175,
+  wall: 0.014,
+  slope: 1.75,
+  gap: 0.198,
+  end: 0.006,
+  drop: 0.009,
+  shadow: 0.026
+}
 /* How far the pane's shadow falls — it is floating, not printed on. */
 const DROP = { offset: 0.03, blur: 0.085, strength: 0.55, contact: 0.024 }
 
@@ -140,7 +150,8 @@ export const PALETTES = {
     glassBottom: [0.68, 0.9, 1.0],
     glassRim: [0.9, 0.97, 1.0],
     wallDeep: [0.027, 0.098, 0.216],
-    wallLit: [0.2, 0.51, 0.78]
+    wallLit: [0.2, 0.51, 0.78],
+    mark: [0.85, 0.88, 0.93]
   },
   /** Deep petrol body, pale aqua glass — cooler, more saturated. */
   petrol: {
@@ -153,7 +164,8 @@ export const PALETTES = {
     glassBottom: [0.66, 0.95, 0.96],
     glassRim: [0.9, 1.0, 1.0],
     wallDeep: [0.02, 0.09, 0.12],
-    wallLit: [0.14, 0.53, 0.58]
+    wallLit: [0.14, 0.53, 0.58],
+    mark: [0.86, 0.94, 0.95]
   },
   /** Warm graphite and champagne — the same icon in a different metal. */
   champagne: {
@@ -166,7 +178,8 @@ export const PALETTES = {
     glassBottom: [1.0, 0.93, 0.78],
     glassRim: [1.0, 0.96, 0.87],
     wallDeep: [0.13, 0.075, 0.02],
-    wallLit: [0.72, 0.5, 0.19]
+    wallLit: [0.72, 0.5, 0.19],
+    mark: [0.94, 0.91, 0.85]
   }
 }
 
@@ -179,6 +192,19 @@ const BODY_MATERIAL = {
   spec: [1, 1, 1],
   rimStrength: 0.26,
   rim: [0.72, 0.8, 0.92]
+}
+
+/* Polished, not chrome: enough specular to catch the key light along the top
+   of each bracket, not so much that they flare next to the glass. */
+const MARK_MATERIAL = {
+  ambient: 0.62,
+  diffuse: 0.52,
+  fill: 0.16,
+  specular: 0.5,
+  shine: 44,
+  spec: [1, 1, 1],
+  rimStrength: 0.2,
+  rim: [0.85, 0.9, 1]
 }
 
 const GLASS_MATERIAL = {
@@ -233,24 +259,6 @@ export function render(size, paletteKey = 'obsidian') {
       const vignette = 1 - 0.22 * smoothstep(0.35, 1.05, Math.hypot(px - 0.3, py - 0.24))
       base = [base[0] * vignette, base[1] * vignette, base[2] * vignette]
 
-      /* --- crop corners, engraved: the walls tilt in, the trough is dark --- */
-      const dCrop = small ? 1 : sdCrop(px, py)
-      if (dCrop < CROP.wall) {
-        /* Erase the middle of each side, so a ring becomes four brackets. */
-        const corner = Math.min(Math.abs(px - 0.5), Math.abs(py - 0.5)) - CROP.gap
-        const inCorner = smoothstep(0, 0.018, corner)
-        if (inCorner > 0) {
-          const wall = (1 - smoothstep(0, CROP.wall, Math.abs(dCrop))) * inCorner
-          const cropGrad = sdGradient(sdCrop, px, py, eps)
-          /* Negative slope: the surface falls away into the groove. */
-          nx -= cropGrad[0] * wall * 1.55
-          ny -= cropGrad[1] * wall * 1.55
-          const inside = (1 - smoothstep(-CROP.wall, CROP.stroke * 0.6, dCrop)) * inCorner
-          const shadowed = 1 - 0.42 * inside
-          base = [base[0] * shadowed, base[1] * shadowed, base[2] * shadowed]
-        }
-      }
-
       /* --- the pane's shadow and the tight contact occlusion under it --- */
       const dDrop = sdSlab(px, py - DROP.offset)
       const drop = (1 - smoothstep(-DROP.blur * 0.35, DROP.blur, dDrop)) * DROP.strength
@@ -266,6 +274,37 @@ export function render(size, paletteKey = 'obsidian') {
       const rim =
         (1 - smoothstep(0, BODY.bevel * 0.6, -dBody)) * Math.max(0, -bodyGrad[1]) * 0.5
       color = [color[0] + rim * 0.5, color[1] + rim * 0.55, color[2] + rim * 0.62]
+
+      /* --- crop corners, raised: four polished brackets standing proud of
+             the body. Engraved, they only existed in raking light and went
+             invisible the moment the icon was small or the screen was dim;
+             sitting on top in a light material, the mark carries. --- */
+      if (!small) {
+        const dCrop = sdCrop(px, py)
+        if (dCrop < CROP.shadow) {
+          /* Erase the middle of each side, so a ring becomes four brackets. */
+          const corner = Math.min(Math.abs(px - 0.5), Math.abs(py - 0.5)) - CROP.gap
+          const inCorner = smoothstep(0, CROP.end, corner)
+          if (inCorner > 0) {
+            /* Anything sitting on the body casts onto it. */
+            const cast =
+              (1 - smoothstep(0, CROP.shadow, sdCrop(px - CROP.drop * 0.3, py - CROP.drop))) *
+              inCorner *
+              0.5
+            color = [color[0] * (1 - cast), color[1] * (1 - cast), color[2] * (1 - cast)]
+
+            const markAlpha = clamp01(0.5 - dCrop / aa) * inCorner
+            if (markAlpha > 0) {
+              const cropGrad = sdGradient(sdCrop, px, py, eps)
+              const tilt = bevel(dCrop, CROP.wall, CROP.slope)
+              const mn = norm3(cropGrad[0] * tilt, cropGrad[1] * tilt, 1)
+              const lit = shade(mn, pal.mark, MARK_MATERIAL)
+              /* The pane's shadow falls across them like anything else. */
+              color = mixRgb(color, [lit[0] * occ, lit[1] * occ, lit[2] * occ], markAlpha)
+            }
+          }
+        }
+      }
 
       /* --- the slab's side wall, seen because the pane is lifted off the
              body: darkest where it meets the near face, warming towards the
