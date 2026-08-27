@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { useEditor } from '@/store/editor'
 import { useExporter } from './panels/ExportPanel'
+import { SkirinMark } from './SkirinMark'
 import { UpdatePill } from './UpdatePill'
 import { Button, IconButton, Tip } from './ui'
 import { clamp } from '@/lib/utils'
@@ -71,7 +72,7 @@ export function TitleBar({
       className="drag-region flex h-10 shrink-0 items-center gap-1 border-b border-hair bg-ink-1/70 pl-2.5 backdrop-blur-xl"
     >
       <div className="no-drag flex items-center gap-2 pr-1.5">
-        <Mark />
+        <SkirinMark className="h-[19px] w-[19px]" />
         <span className="text-[12.5px] font-semibold tracking-tight text-text-1">Skirin</span>
       </div>
 
@@ -195,29 +196,6 @@ export function TitleBar({
 
       <CaptionButtons />
     </header>
-  )
-}
-
-function Mark(): React.JSX.Element {
-  return (
-    <span className="flex h-[19px] w-[19px] items-center justify-center rounded-[6px] bg-gradient-to-br from-[#7f5dff] via-[#a855f7] to-[#ff6ba8] shadow-[inset_0_1px_0_0_#ffffff54,0_2px_8px_-2px_#7f5dffa6]">
-      <CropMarks className="h-[11px] w-[11px]" />
-    </span>
-  )
-}
-
-/** The four corner brackets from the app icon. */
-export function CropMarks({ className }: { className?: string }): React.JSX.Element {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
-      <path
-        d="M4 9V6.5A2.5 2.5 0 0 1 6.5 4H9M15 4h2.5A2.5 2.5 0 0 1 20 6.5V9M20 15v2.5a2.5 2.5 0 0 1-2.5 2.5H15M9 20H6.5A2.5 2.5 0 0 1 4 17.5V15"
-        stroke="currentColor"
-        strokeWidth={2.6}
-        strokeLinecap="round"
-        className="text-white"
-      />
-    </svg>
   )
 }
 
