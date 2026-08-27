@@ -1,5 +1,6 @@
 import type { Annotation, EffectAnnotation } from '@shared/types'
 import { uid } from './utils'
+import type { Surface } from './utils'
 
 export type SensitiveKind =
   | 'email'
@@ -163,12 +164,19 @@ function collectLines(data: any): LineBox[] {
  * returning normalized boxes for the words that matched.
  */
 export async function detectSensitive(
-  source: HTMLCanvasElement,
+  source: Surface,
   kinds: SensitiveKind[],
   onProgress?: (message: string, ratio: number) => void
 ): Promise<DetectedField[]> {
   const worker = await getWorker(onProgress)
-  const { data } = await worker.recognize(source, {}, { blocks: true, text: false })
+  // Tesseract only accepts a DOM canvas. OCR is an editor action, and on the
+  // main thread `createCanvas` always makes one — `OffscreenCanvas` is reached
+  // only from the export worker, which never runs OCR.
+  const { data } = await worker.recognize(
+    source as HTMLCanvasElement,
+    {},
+    { blocks: true, text: false }
+  )
   const lines = collectLines(data)
   const width = source.width
   const height = source.height

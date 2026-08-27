@@ -178,15 +178,27 @@ export function drawImageQuad(
   // A parallelogram (no tilt, any rotation) is exactly affine — draw it in one
   // pass instead of tessellating, which avoids diagonal seams entirely.
   if (Math.abs(m[6]) < 1e-9 && Math.abs(m[7]) < 1e-9) {
+    const a = m[0] / imageWidth
+    const b = m[3] / imageWidth
+    const c = m[1] / imageHeight
+    const d = m[4] / imageHeight
+
+    // Rounding elsewhere in the pipeline — chrome height, the raster canvas —
+    // can leave the linear part a hair off the identity: a 1.0004x "scale"
+    // that moves nothing by even a whole pixel. Canvas has no idea it is a
+    // no-op and resamples the entire surface for it, which at export
+    // resolution is one of the most expensive draws in the render, and it
+    // softens every hard edge on the way through. Below half a pixel of
+    // displacement at the far corner, place the image instead of warping it.
+    const driftX = Math.abs((a - 1) * imageWidth) + Math.abs(c * imageHeight)
+    const driftY = Math.abs(b * imageWidth) + Math.abs((d - 1) * imageHeight)
+    if (driftX < 0.5 && driftY < 0.5) {
+      ctx.drawImage(image, m[2], m[5])
+      return
+    }
+
     ctx.save()
-    ctx.transform(
-      m[0] / imageWidth,
-      m[3] / imageWidth,
-      m[1] / imageHeight,
-      m[4] / imageHeight,
-      m[2],
-      m[5]
-    )
+    ctx.transform(a, b, c, d, m[2], m[5])
     ctx.drawImage(image, 0, 0)
     ctx.restore()
     return

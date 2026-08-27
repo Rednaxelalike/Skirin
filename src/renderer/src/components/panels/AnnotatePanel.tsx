@@ -340,6 +340,10 @@ function SmartRedactSection(): React.JSX.Element {
 
   const run = async (): Promise<void> => {
     if (!capture || !images.base) return
+    // The button below is disabled while anything else holds `busy`, but the
+    // flag is app-wide now — claiming it without looking would let a scan
+    // release an export's lock out from under it.
+    if (useEditor.getState().busy) return
     setBusy('Reading text…')
     try {
       const content = buildContentCanvas(

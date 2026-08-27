@@ -1,6 +1,8 @@
 import type { ExportSettings, Scene } from '@shared/types'
 import { renderScene } from './render'
 import type { SceneImages } from './render'
+import { context2d, createCanvas, release, toBlob } from './utils'
+import type { Surface } from './utils'
 
 const MIME: Record<ExportSettings['format'], string> = {
   png: 'image/png',
@@ -17,37 +19,32 @@ export interface EncodedImage {
 }
 
 /**
- * `toBlob` rather than `toDataURL`: the browser encodes off the main thread,
- * the result never becomes a base64 string, and `blob.size` is the real file
- * size instead of an estimate derived from string length. That last part
- * matters here — the size budget below binary-searches against it.
+ * The stages of an export worth telling the user about.
+ *
+ * These are the real time boundaries, not a progress bar: composing dominates,
+ * encoding a 30MP surface is not instant, and the size budget re-encodes it up
+ * to seven more times, which is by far the longest an export ever takes.
  */
-function encode(
-  canvas: HTMLCanvasElement,
-  mime: string,
-  quality: number | undefined
-): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error('Could not encode the image'))),
-      mime,
-      quality
-    )
-  })
-}
+export type ExportPhase = 'composing' | 'encoding' | 'fitting'
+
+export type OnPhase = (phase: ExportPhase) => void
 
 /**
  * Encodes the canvas, and when a size budget is set, binary-searches quality
  * (then resolution) until the result fits — the "keep it under 1 MB" workflow.
  */
 export async function encodeCanvas(
-  canvas: HTMLCanvasElement,
-  settings: ExportSettings
+  canvas: Surface,
+  settings: ExportSettings,
+  onPhase?: OnPhase
 ): Promise<EncodedImage> {
   const mime = MIME[settings.format]
   const lossless = settings.format === 'png'
-  const at = (quality: number, source: HTMLCanvasElement = canvas): Promise<Blob> =>
-    encode(source, mime, lossless ? undefined : quality)
+  // A blob rather than a data URL: nothing becomes a base64 string, and
+  // `blob.size` is the real file size rather than an estimate derived from
+  // string length. That last part matters — the budget below searches on it.
+  const at = (quality: number, source: Surface = canvas): Promise<Blob> =>
+    toBlob(source, mime, lossless ? undefined : quality)
 
   let quality = settings.quality
   let blob = await at(quality)
@@ -56,6 +53,8 @@ export async function encodeCanvas(
   if (!budget || blob.size <= budget) {
     return { blob, bytes: blob.size, width: canvas.width, height: canvas.height, quality }
   }
+
+  onPhase?.('fitting')
 
   if (!lossless) {
     let low = 0.25
@@ -79,13 +78,11 @@ export async function encodeCanvas(
   // Still too heavy — step the resolution down.
   let working = canvas
   for (let i = 0; i < 6 && blob.size > budget; i++) {
-    const next = document.createElement('canvas')
-    next.width = Math.max(1, Math.round(working.width * 0.8))
-    next.height = Math.max(1, Math.round(working.height * 0.8))
-    const ctx = next.getContext('2d')
-    if (!ctx) break
+    const next = createCanvas(working.width * 0.8, working.height * 0.8)
+    const ctx = context2d(next)
     ctx.imageSmoothingQuality = 'high'
     ctx.drawImage(working, 0, 0, next.width, next.height)
+    if (working !== canvas) release(working)
     working = next
     blob = await at(quality, working)
   }
@@ -96,13 +93,16 @@ export async function encodeCanvas(
 export async function renderAndEncode(
   scene: Scene,
   images: SceneImages,
-  settings: ExportSettings
+  settings: ExportSettings,
+  onPhase?: OnPhase
 ): Promise<EncodedImage> {
+  onPhase?.('composing')
   const result = renderScene(scene, images, {
     scale: settings.scale,
     forceTransparent: settings.transparent && settings.format !== 'jpeg'
   })
-  return encodeCanvas(result.canvas, settings)
+  onPhase?.('encoding')
+  return encodeCanvas(result.canvas, settings, onPhase)
 }
 
 export function suggestedName(sourceName: string): string {

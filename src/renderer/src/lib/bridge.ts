@@ -119,7 +119,27 @@ const api = {
   },
 
   image: {
-    copy: (blob: Blob): Promise<boolean> => sendBytes('image_copy', blob, {}),
+    /**
+     * The backend decodes and sets the clipboard on a background thread — a 4x
+     * export is a 56-megapixel PNG and doing it inline froze the window — so
+     * the outcome arrives as an event rather than as the invoke's result. The
+     * listener goes up first so a fast copy cannot land before it.
+     */
+    copy: async (blob: Blob): Promise<boolean> => {
+      let settle: (ok: boolean) => void = () => {}
+      const result = new Promise<boolean>((resolve) => {
+        settle = resolve
+      })
+      const unlisten = await listen<boolean>('clipboard:result', (event) =>
+        settle(event.payload)
+      )
+      try {
+        const accepted = await sendBytes<boolean>('image_copy', blob, {})
+        return accepted ? await result : false
+      } finally {
+        unlisten()
+      }
+    },
     paste: (): Promise<LoadedImage | null> => invoke('image_paste'),
     open: (): Promise<LoadedImage | null> => invoke('image_open'),
     save: (
@@ -131,6 +151,7 @@ const api = {
         width?: number
         height?: number
         sourceName?: string
+        copy?: boolean
       }
     ): Promise<SaveResult> =>
       sendBytes('image_save', blob, {
@@ -139,7 +160,8 @@ const api = {
         'x-name': ascii(options.suggestedName ?? ''),
         'x-width': String(options.width ?? 0),
         'x-height': String(options.height ?? 0),
-        'x-source': ascii(options.sourceName ?? '')
+        'x-source': ascii(options.sourceName ?? ''),
+        'x-copy': options.copy ? '1' : '0'
       })
   },
 

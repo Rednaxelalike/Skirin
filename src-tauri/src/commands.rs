@@ -175,15 +175,30 @@ fn text_header(request: &Request<'_>, name: &str) -> Option<String> {
     header(request, name).map(percent_decode)
 }
 
+/// Puts an already-encoded image on the clipboard.
+///
+/// The decode is the expensive part — a 4x export is a 56-megapixel PNG, a few
+/// seconds of work — and a blocking `#[tauri::command]` runs inline on the
+/// thread that pumps the window's message loop. Doing it here froze the whole
+/// app, "(Not Responding)" title and all, for as long as it took. The work runs
+/// on a background thread instead and the outcome comes back as
+/// `clipboard:result`, which is what the bridge's promise settles on. The
+/// return value only says the bytes were accepted.
 #[tauri::command]
-pub fn image_copy(request: Request<'_>) -> bool {
+pub fn image_copy(app: AppHandle, request: Request<'_>) -> bool {
     let Some(bytes) = raw_body(&request) else {
         return false;
     };
-    let Some(image) = files::decode(&bytes) else {
-        return false;
-    };
-    files::copy_image(&image).is_ok()
+
+    std::thread::spawn(move || {
+        let ok = match files::decode(&bytes) {
+            Some(image) => files::copy_image(&image).is_ok(),
+            None => false,
+        };
+        let _ = app.emit("clipboard:result", ok);
+    });
+
+    true
 }
 
 #[tauri::command]
@@ -308,22 +323,51 @@ pub fn image_save(app: AppHandle, window: WebviewWindow, request: Request<'_>) -
     let source = text_header(&request, "x-source")
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| "Screenshot".to_string());
+    // "Copy on export" used to be a second `image_copy` round trip, which meant
+    // decoding the export twice. It rides along with the save so the one decode
+    // below serves both.
+    let also_copy = header(&request, "x-copy") == Some("1");
 
-    if let Some(image) = files::decode(&bytes) {
-        state.store.push_history(crate::types::HistoryEntry {
-            id: format!(
-                "{}-{}",
-                capture::now_millis(),
-                target.file_name().unwrap_or_default().to_string_lossy()
-            ),
-            file: target.to_string_lossy().into_owned(),
-            thumb: files::thumbnail_data_url(&image, 320),
-            created_at: capture::now_millis(),
-            width,
-            height,
-            source_name: source,
-        });
-    }
+    // Everything past this point needs the export decoded, and at 4x that is a
+    // 56-megapixel PNG. This is a blocking command, so it runs inline on the
+    // thread that pumps the window's message loop — decoding here is what hung
+    // the app on a large export. The file is already written and the editor
+    // only waits on the path, so the thumbnail and the clipboard finish off
+    // that thread. Nothing reads history until the dialog is opened, which
+    // re-fetches it.
+    let app_handle = app.clone();
+    let history_path = target.clone();
+    std::thread::spawn(move || {
+        let Some(image) = files::decode(&bytes) else {
+            return;
+        };
+
+        if also_copy {
+            if let Err(error) = files::copy_image(&image) {
+                eprintln!("[skirin] copy on export failed: {error}");
+            }
+        }
+
+        app_handle
+            .state::<App>()
+            .store
+            .push_history(crate::types::HistoryEntry {
+                id: format!(
+                    "{}-{}",
+                    capture::now_millis(),
+                    history_path
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                ),
+                file: history_path.to_string_lossy().into_owned(),
+                thumb: files::thumbnail_data_url(&image, 320),
+                created_at: capture::now_millis(),
+                width,
+                height,
+                source_name: source,
+            });
+    });
 
     SaveResult {
         ok: true,

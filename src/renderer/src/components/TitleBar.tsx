@@ -7,6 +7,7 @@ import {
   FolderOpen,
   History,
   Keyboard,
+  Loader2,
   Monitor,
   Repeat,
   Settings,
@@ -144,12 +145,22 @@ export function TitleBar({
         </div>
       )}
 
+      {/* Beside the buttons it describes, and always mounted — the export
+          panel this used to live in is one inspector tab of four, so it was
+          unmounted for anyone exporting from up here, which is most people. */}
+      {busy && (
+        <div className="no-drag mr-1.5 flex items-center gap-1.5 text-[11px] text-text-2">
+          <Loader2 size={12} className="shrink-0 animate-spin text-brand" />
+          {busy}
+        </div>
+      )}
+
       {capture && (
         <>
           <Button
             variant="ghost"
             size="sm"
-            disabled={busy}
+            disabled={!!busy}
             onClick={() => void copy()}
             className="no-drag"
           >
@@ -158,7 +169,7 @@ export function TitleBar({
           <Button
             variant="brand"
             size="sm"
-            disabled={busy}
+            disabled={!!busy}
             onClick={() => void save(false)}
             className="no-drag"
           >

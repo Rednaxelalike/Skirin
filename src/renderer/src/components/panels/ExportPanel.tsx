@@ -1,20 +1,34 @@
 import * as React from 'react'
 import { toast } from 'sonner'
-import { Check, ClipboardCopy, Download, FolderOpen, Save } from 'lucide-react'
+import { Check, ClipboardCopy, Download, FolderOpen, Loader2, Save } from 'lucide-react'
 import type { ExportFormat } from '@shared/types'
 import { useEditor } from '@/store/editor'
 import { measureScene } from '@/lib/render'
-import { renderAndEncode, suggestedName } from '@/lib/exporter'
+import { suggestedName } from '@/lib/exporter'
+import type { ExportPhase } from '@/lib/exporter'
+import { exportImage } from '@/lib/export-client'
 import { formatBytes } from '@/lib/utils'
 import { Row, Section, Segmented, Slider, Switch } from '../ui'
 
+const PHASE_LABEL: Record<ExportPhase, string> = {
+  composing: 'Composing…',
+  encoding: 'Encoding…',
+  fitting: 'Trimming to fit…'
+}
+
 export function useExporter(): {
-  busy: boolean
+  busy: string | null
   copy: () => Promise<void>
   save: (askWhere?: boolean) => Promise<void>
   dimensions: { width: number; height: number } | null
 } {
-  const [busy, setBusy] = React.useState(false)
+  // App-wide rather than local: this hook is mounted three times over (here,
+  // the title bar and the shortcut handler in App), and a local flag left each
+  // copy blind to the others' work. Sharing the store's `busy` is what stops
+  // Ctrl+S firing a second export on top of the first — which only became
+  // reachable once the export stopped blocking the main thread.
+  const busy = useEditor((s) => s.busy)
+  const setBusy = useEditor((s) => s.setBusy)
 
   const bundle = (): {
     scene: ReturnType<typeof useEditor.getState>['scene']
@@ -36,17 +50,29 @@ export function useExporter(): {
     }
   }
 
+  /** One heavy job at a time — the check and the claim share a tick. */
+  const claim = (label: string): boolean => {
+    if (useEditor.getState().busy) return false
+    setBusy(label)
+    return true
+  }
+
   const copy = async (): Promise<void> => {
     const data = bundle()
     if (!data) return
-    setBusy(true)
+    if (!claim(PHASE_LABEL.composing)) return
     try {
       const settings = useEditor.getState().exportSettings
-      const encoded = await renderAndEncode(data.scene, data.images, {
-        ...settings,
-        // The Windows clipboard is a bitmap surface — always hand it PNG.
-        format: 'png'
-      })
+      const encoded = await exportImage(
+        data.scene,
+        data.images,
+        {
+          ...settings,
+          // The Windows clipboard is a bitmap surface — always hand it PNG.
+          format: 'png'
+        },
+        (phase) => setBusy(PHASE_LABEL[phase])
+      )
       const ok = await window.skirin.image.copy(encoded.blob)
       if (ok) {
         toast.success('Copied to clipboard', {
@@ -58,25 +84,31 @@ export function useExporter(): {
     } catch (error) {
       toast.error('Export failed', { description: (error as Error).message })
     } finally {
-      setBusy(false)
+      setBusy(null)
     }
   }
 
   const save = async (askWhere = false): Promise<void> => {
     const data = bundle()
     if (!data) return
-    setBusy(true)
+    if (!claim(PHASE_LABEL.composing)) return
     try {
       const state = useEditor.getState()
       const settings = state.exportSettings
-      const encoded = await renderAndEncode(data.scene, data.images, settings)
+      const encoded = await exportImage(data.scene, data.images, settings, (phase) =>
+        setBusy(PHASE_LABEL[phase])
+      )
       const result = await window.skirin.image.save(encoded.blob, {
         format: settings.format,
         askWhere,
         suggestedName: suggestedName(data.name),
         width: encoded.width,
         height: encoded.height,
-        sourceName: data.name
+        sourceName: data.name,
+        // Handed to the save rather than sent as a second call: the backend
+        // has to decode the export for the history thumbnail either way, and
+        // one decode of a 4x export is quite enough.
+        copy: state.settings?.copyOnExport ?? false
       })
 
       if (result.canceled) return
@@ -84,8 +116,6 @@ export function useExporter(): {
         toast.error('Could not save', { description: result.error })
         return
       }
-
-      if (state.settings?.copyOnExport) await window.skirin.image.copy(encoded.blob)
 
       toast.success('Saved', {
         description: `${encoded.width} × ${encoded.height} · ${formatBytes(encoded.bytes)}`,
@@ -97,7 +127,7 @@ export function useExporter(): {
     } catch (error) {
       toast.error('Export failed', { description: (error as Error).message })
     } finally {
-      setBusy(false)
+      setBusy(null)
     }
   }
 
@@ -189,14 +219,14 @@ export function ExportPanel(): React.JSX.Element {
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={() => void copy()}
-            disabled={busy}
+            disabled={!!busy}
             className="focus-ring flex h-9 items-center justify-center gap-2 rounded-lg bg-white/8 text-[12px] font-medium text-text-1 hover:bg-white/14 disabled:opacity-40"
           >
             <ClipboardCopy size={14} /> Copy
           </button>
           <button
             onClick={() => void save(false)}
-            disabled={busy}
+            disabled={!!busy}
             className="focus-ring flex h-9 items-center justify-center gap-2 rounded-lg bg-brand text-[12px] font-medium text-white hover:bg-brand/88 disabled:opacity-40"
           >
             <Download size={14} /> Save
@@ -204,11 +234,21 @@ export function ExportPanel(): React.JSX.Element {
         </div>
         <button
           onClick={() => void save(true)}
-          disabled={busy}
+          disabled={!!busy}
           className="focus-ring flex h-8 w-full items-center justify-center gap-2 rounded-lg border border-hair text-[12px] text-text-2 hover:bg-white/6 hover:text-text-1 disabled:opacity-40"
         >
           <Save size={13} /> Save as…
         </button>
+        {busy && (
+          // Says why all three buttons just went grey. `busy` is app-wide, so
+          // this covers the annotate panel's OCR pass too — an export and a
+          // scan both want the whole machine, and neither runs while the other
+          // does.
+          <div className="flex items-center gap-2 rounded-lg border border-hair bg-white/3 px-2.5 py-2 text-[11px] text-text-2">
+            <Loader2 size={12} className="shrink-0 animate-spin text-brand" />
+            {busy}
+          </div>
+        )}
         {appSettings && (
           <button
             onClick={() => void window.skirin.shell.open(appSettings.saveDir)}
