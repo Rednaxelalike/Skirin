@@ -232,11 +232,18 @@ export function App(): React.JSX.Element {
         position="bottom-center"
         offset={20}
         toastOptions={{
+          // Same recipe as every other floating surface: a lit top edge, a
+          // hairline, and two drops at different radii.
           style: {
-            background: 'rgba(19,19,25,0.94)',
-            border: '1px solid rgba(255,255,255,0.09)',
-            color: '#f4f4f6',
-            backdropFilter: 'blur(20px)'
+            background: 'rgba(22,22,29,0.95)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: '12px',
+            color: '#f6f6f9',
+            fontFamily: 'inherit',
+            letterSpacing: '-0.008em',
+            boxShadow:
+              'inset 0 1px 0 0 rgba(255,255,255,0.06), 0 0 0 1px rgba(0,0,0,0.45), 0 16px 40px -12px rgba(0,0,0,0.72), 0 4px 12px -4px rgba(0,0,0,0.58)',
+            backdropFilter: 'blur(28px) saturate(1.4)'
           }
         }}
       />

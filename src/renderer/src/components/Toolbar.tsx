@@ -146,18 +146,20 @@ function StrokeDots({
 }): React.JSX.Element {
   const sizes = [3, 6, 10, 16]
   return (
-    <div className="flex flex-col items-center gap-1.5 rounded-lg bg-white/4 py-1.5">
+    <div className="sk-well flex flex-col items-center gap-1.5 rounded-[10px] py-1.5">
       {sizes.map((size) => (
         <button
           key={size}
           onClick={() => onChange(size)}
-          className="focus-ring flex h-5 w-5 items-center justify-center rounded-md hover:bg-white/8"
+          className="focus-ring flex h-5 w-5 items-center justify-center rounded-[6px] transition-colors duration-150 hover:bg-white/[0.08]"
           aria-label={`Stroke ${size}`}
         >
           <span
             className={cn(
-              'block rounded-full transition-colors',
-              value === size ? 'bg-brand-soft' : 'bg-text-3'
+              'block rounded-full transition-[background-color,box-shadow] duration-150',
+              value === size
+                ? 'bg-brand-soft shadow-[0_0_8px_0_color-mix(in_srgb,var(--color-brand)_80%,transparent)]'
+                : 'bg-text-3'
             )}
             style={{ width: size / 1.6 + 3, height: size / 1.6 + 3 }}
           />

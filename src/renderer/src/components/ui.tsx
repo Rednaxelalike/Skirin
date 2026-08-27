@@ -7,6 +7,18 @@ import * as RSelect from '@radix-ui/react-select'
 import { Check, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+/*
+ * The control kit.
+ *
+ * Every control here is built from the same four primitives, defined in
+ * `styles.css`: `sk-raise` (a lit surface that sits above the panel),
+ * `sk-well` (a channel carved into it), `sk-brand` (the violet call to
+ * action) and `sk-field` (a recessed input). Anything that reads as raised
+ * gets a hairline of light along its top edge and two soft drops beneath it;
+ * anything recessed gets the same trick inverted. That single rule is what
+ * makes the set look like one piece of hardware rather than a pile of divs.
+ */
+
 /* -------------------------------- tooltip -------------------------------- */
 
 export function TooltipProvider({ children }: { children: React.ReactNode }): React.JSX.Element {
@@ -35,10 +47,10 @@ export function Tip({
         <RTooltip.Content
           side={side}
           sideOffset={8}
-          className="animate-pop z-50 rounded-lg border border-hair bg-ink-2/95 px-2.5 py-1.5 text-[11.5px] text-text-1 shadow-xl shadow-black/50 backdrop-blur-xl"
+          className="sk-pop animate-pop z-50 flex items-center gap-2 rounded-[10px] px-2.5 py-1.5 text-[11.5px] font-medium text-text-1"
         >
           {label}
-          {hint && <span className="ml-2 text-text-3">{hint}</span>}
+          {hint && <Kbd>{hint}</Kbd>}
         </RTooltip.Content>
       </RTooltip.Portal>
     </RTooltip.Root>
@@ -49,7 +61,7 @@ export function Tip({
 
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: 'ghost' | 'solid' | 'brand' | 'subtle'
-  size?: 'sm' | 'md'
+  size?: 'sm' | 'md' | 'lg'
   active?: boolean
 }
 
@@ -61,14 +73,19 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function 
     <button
       ref={ref}
       className={cn(
-        'focus-ring no-drag inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition-colors duration-150 disabled:pointer-events-none disabled:opacity-40',
-        size === 'sm' ? 'h-7 px-2 text-[11.5px]' : 'h-8 px-3 text-[12.5px]',
-        variant === 'ghost' && 'text-text-2 hover:bg-white/6 hover:text-text-1',
-        variant === 'subtle' && 'bg-white/5 text-text-1 hover:bg-white/10',
-        variant === 'solid' && 'bg-ink-4 text-text-1 hover:bg-ink-5',
-        variant === 'brand' &&
-          'bg-brand text-white shadow-[0_1px_0_0_#ffffff2e_inset] hover:bg-brand/88',
-        active && 'bg-white/10 text-text-1',
+        'focus-ring no-drag inline-flex shrink-0 items-center justify-center gap-1.5 rounded-ctl font-medium',
+        'disabled:pointer-events-none disabled:opacity-40',
+        size === 'sm' && 'h-7 px-2.5 text-[11.5px]',
+        size === 'md' && 'h-8 px-3 text-[12.5px]',
+        size === 'lg' && 'h-9 px-3.5 text-[13px]',
+        // Ghost stays flat until you touch it — it is the only variant that
+        // does not claim elevation, which is what keeps toolbars quiet.
+        variant === 'ghost' &&
+          'text-text-2 transition-colors duration-150 hover:bg-white/[0.07] hover:text-text-1 active:bg-white/[0.04]',
+        variant === 'subtle' && 'sk-raise bg-ink-3 text-text-1',
+        variant === 'solid' && 'sk-raise text-text-1',
+        variant === 'brand' && 'sk-brand',
+        active && variant === 'ghost' && 'bg-white/[0.09] text-text-1',
         className
       )}
       {...props}
@@ -84,8 +101,13 @@ export function IconButton({
   return (
     <button
       className={cn(
-        'focus-ring no-drag inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-2 transition-colors duration-150 hover:bg-white/8 hover:text-text-1 disabled:pointer-events-none disabled:opacity-35',
-        active && 'bg-brand/18 text-brand-soft',
+        'focus-ring no-drag inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-ctl text-text-2',
+        'transition-[background-color,color,box-shadow] duration-150',
+        'hover:bg-white/[0.07] hover:text-text-1',
+        'disabled:pointer-events-none disabled:opacity-35',
+        // Selected tools glow rather than merely tint: a violet wash, a violet
+        // hairline, and a soft bloom underneath.
+        active && 'sk-selected',
         className
       )}
       {...props}
@@ -143,8 +165,34 @@ export function Row({
   )
 }
 
+/** The small recessed chip a numeric read-out sits in. */
+export function Chip({
+  children,
+  className
+}: {
+  children: React.ReactNode
+  className?: string
+}): React.JSX.Element {
+  return (
+    <span
+      className={cn(
+        'sk-well inline-flex h-[19px] items-center justify-center rounded-[6px] px-1.5',
+        'font-mono text-[10.5px] tabular-nums leading-none text-text-2',
+        className
+      )}
+    >
+      {children}
+    </span>
+  )
+}
+
 /* --------------------------------- slider -------------------------------- */
 
+/**
+ * A channel carved into the panel, filled with violet, with a hairline of
+ * white marking the value. The read-out lives in its own chip so the eye can
+ * find it without reading the track — the same split the reference uses.
+ */
 export function Slider({
   label,
   value,
@@ -170,13 +218,13 @@ export function Slider({
 }): React.JSX.Element {
   const display = format ? format(value) : `${Math.round(value * 100) / 100}${unit ?? ''}`
   return (
-    <div className={cn('space-y-1.5', disabled && 'pointer-events-none opacity-40')}>
-      <div className="flex items-center justify-between">
-        <span className="text-[12px] text-text-2">{label}</span>
-        <span className="font-mono text-[11px] tabular-nums text-text-3">{display}</span>
+    <div className={cn('space-y-2', disabled && 'pointer-events-none opacity-40')}>
+      <div className="flex items-center justify-between gap-2">
+        <span className="truncate text-[12px] text-text-2">{label}</span>
+        <Chip>{display}</Chip>
       </div>
       <RSlider.Root
-        className="relative flex h-4 w-full touch-none items-center"
+        className="group relative flex h-5 w-full touch-none select-none items-center"
         value={[value]}
         min={min}
         max={max}
@@ -184,11 +232,13 @@ export function Slider({
         onValueChange={([v]) => onChange(v)}
         onValueCommit={onCommit}
       >
-        <RSlider.Track className="relative h-1 w-full grow rounded-full bg-white/10">
-          <RSlider.Range className="absolute h-full rounded-full bg-brand/80" />
+        <RSlider.Track className="sk-well relative h-5 w-full grow overflow-hidden rounded-[7px] transition-colors duration-150 group-hover:bg-ink-4">
+          <RSlider.Range className="sk-range absolute inset-y-0 left-0" />
         </RSlider.Track>
         <RSlider.Thumb
-          className="focus-ring block h-3.5 w-3.5 rounded-full border border-black/40 bg-white shadow-md transition-transform hover:scale-110 active:scale-95"
+          className="focus-ring block h-3 w-[3px] rounded-full bg-white shadow-[var(--shadow-thumb)]
+                     transition-[height,width] duration-150 ease-[var(--ease-out-soft)]
+                     group-hover:h-3.5 active:h-3.5 active:w-[4px]"
           aria-label={label}
         />
       </RSlider.Root>
@@ -213,13 +263,86 @@ export function Switch({
       onCheckedChange={onChange}
       disabled={disabled}
       className={cn(
-        'focus-ring relative h-[18px] w-[32px] shrink-0 rounded-full border border-hair transition-colors',
-        checked ? 'bg-brand' : 'bg-white/8',
+        'focus-ring relative flex h-5 w-9 shrink-0 items-center rounded-full border',
+        'transition-[background,border-color,box-shadow] duration-200 ease-[var(--ease-out-soft)]',
+        checked ? 'sk-on' : 'sk-well border-hair',
         disabled && 'opacity-40'
       )}
     >
-      <RSwitch.Thumb className="block h-3.5 w-3.5 translate-x-[2px] rounded-full bg-white transition-transform duration-150 will-change-transform data-[state=checked]:translate-x-[15px]" />
+      <RSwitch.Thumb
+        className={cn(
+          'block h-3.5 w-3.5 rounded-full shadow-[var(--shadow-thumb)] will-change-transform',
+          'translate-x-[2px] transition-[transform,background-color] duration-200 ease-[var(--ease-out-soft)]',
+          'data-[state=checked]:translate-x-[18px]',
+          // Off, the knob is warm grey, not white — white on a dark track
+          // reads as "on" at a glance, which is the whole failure mode.
+          checked ? 'bg-white' : 'bg-[#b4b4c1]'
+        )}
+      />
     </RSwitch.Root>
+  )
+}
+
+/* -------------------------------- checkbox ------------------------------- */
+
+export function Checkbox({
+  checked,
+  onChange,
+  label,
+  disabled,
+  className
+}: {
+  checked: boolean
+  onChange: (value: boolean) => void
+  label?: React.ReactNode
+  disabled?: boolean
+  className?: string
+}): React.JSX.Element {
+  const box = (
+    <span
+      className={cn(
+        'relative flex h-[17px] w-[17px] shrink-0 items-center justify-center rounded-[5px] border',
+        'transition-[background,border-color,box-shadow] duration-150 ease-[var(--ease-out-soft)]',
+        checked ? 'sk-on' : 'sk-well border-hair-strong'
+      )}
+    >
+      <Check
+        size={11}
+        strokeWidth={3.25}
+        className={cn(
+          'text-white transition-[opacity,transform] duration-150 ease-[var(--ease-out-soft)]',
+          checked ? 'scale-100 opacity-100' : 'scale-50 opacity-0'
+        )}
+      />
+    </span>
+  )
+
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={checked}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={cn(
+        'focus-ring group inline-flex items-center gap-2 rounded-[7px] text-left',
+        'disabled:pointer-events-none disabled:opacity-40',
+        label && 'min-w-0',
+        className
+      )}
+    >
+      {box}
+      {label && (
+        <span
+          className={cn(
+            'truncate text-[12px] transition-colors duration-150',
+            checked ? 'text-text-1' : 'text-text-2 group-hover:text-text-1'
+          )}
+        >
+          {label}
+        </span>
+      )}
+    </button>
   )
 }
 
@@ -237,22 +360,27 @@ export function Segmented<T extends string>({
   className?: string
 }): React.JSX.Element {
   return (
-    <div className={cn('flex rounded-lg bg-white/5 p-0.5', className)}>
-      {options.map((option) => (
-        <button
-          key={option.value}
-          title={option.title}
-          onClick={() => onChange(option.value)}
-          className={cn(
-            'focus-ring flex h-6.5 flex-1 items-center justify-center gap-1 rounded-[6px] px-2 text-[11.5px] font-medium transition-colors',
-            value === option.value
-              ? 'bg-ink-4 text-text-1 shadow-sm'
-              : 'text-text-3 hover:text-text-2'
-          )}
-        >
-          {option.label}
-        </button>
-      ))}
+    <div className={cn('sk-well flex rounded-[10px] p-1', className)}>
+      {options.map((option) => {
+        const selected = value === option.value
+        return (
+          <button
+            key={option.value}
+            title={option.title}
+            onClick={() => onChange(option.value)}
+            className={cn(
+              'focus-ring flex h-6.5 flex-1 items-center justify-center gap-1 rounded-[6px] border px-2',
+              'text-[11.5px] font-medium',
+              'transition-[background-color,color,box-shadow,border-color] duration-150 ease-[var(--ease-out-soft)]',
+              selected
+                ? 'border-hair bg-ink-4 text-text-1 shadow-[var(--shadow-raise)]'
+                : 'border-transparent text-text-3 hover:bg-white/[0.04] hover:text-text-2'
+            )}
+          >
+            {option.label}
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -274,30 +402,37 @@ export function Select<T extends string>({
     <RSelect.Root value={value} onValueChange={(v) => onChange(v as T)}>
       <RSelect.Trigger
         className={cn(
-          'focus-ring inline-flex h-7 items-center justify-between gap-2 rounded-lg border border-hair bg-white/5 px-2.5 text-[12px] text-text-1 hover:bg-white/8',
+          'sk-field group inline-flex h-8 items-center justify-between gap-2 rounded-ctl px-2.5',
+          'text-[12px] text-text-1',
           className
         )}
       >
         <RSelect.Value />
         <RSelect.Icon>
-          <ChevronDown size={13} className="text-text-3" />
+          <ChevronDown
+            size={13}
+            className="text-text-3 transition-transform duration-200 ease-[var(--ease-out-soft)] group-data-[state=open]:rotate-180"
+          />
         </RSelect.Icon>
       </RSelect.Trigger>
       <RSelect.Portal>
         <RSelect.Content
           position="popper"
           sideOffset={6}
-          className="animate-pop z-50 overflow-hidden rounded-xl border border-hair bg-ink-2/97 p-1 shadow-2xl shadow-black/60 backdrop-blur-2xl"
+          className="sk-pop animate-pop z-50 overflow-hidden rounded-pop p-1"
         >
           <RSelect.Viewport>
             {options.map((option) => (
               <RSelect.Item
                 key={option.value}
                 value={option.value}
-                className="focus-ring relative flex h-7 cursor-default select-none items-center rounded-lg pl-7 pr-3 text-[12px] text-text-2 outline-none data-[highlighted]:bg-white/8 data-[highlighted]:text-text-1"
+                className="relative flex h-7 cursor-default select-none items-center rounded-[7px] pl-7 pr-3 text-[12px] text-text-2 outline-none
+                           transition-colors duration-100
+                           data-[highlighted]:bg-white/[0.08] data-[highlighted]:text-text-1
+                           data-[state=checked]:text-text-1"
               >
                 <RSelect.ItemIndicator className="absolute left-2">
-                  <Check size={12} className="text-brand-soft" />
+                  <Check size={12} strokeWidth={3} className="text-brand-soft" />
                 </RSelect.ItemIndicator>
                 <RSelect.ItemText>{option.label}</RSelect.ItemText>
               </RSelect.Item>
@@ -317,7 +452,7 @@ export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttribute
       <input
         ref={ref}
         className={cn(
-          'focus-ring h-7 min-w-0 rounded-lg border border-hair bg-white/5 px-2.5 text-[12px] text-text-1 placeholder:text-text-3 hover:bg-white/8',
+          'sk-field h-8 min-w-0 rounded-ctl px-2.5 text-[12px] text-text-1 placeholder:text-text-3',
           className
         )}
         {...props}
@@ -401,19 +536,24 @@ export function ColorPicker({
       <RPopover.Trigger asChild>
         <button
           className={cn(
-            'focus-ring checker relative shrink-0 overflow-hidden rounded-lg border border-hair-strong transition-transform hover:scale-105',
+            'focus-ring checker relative shrink-0 overflow-hidden rounded-[7px] border border-hair-strong',
+            'shadow-[var(--shadow-raise)] transition-transform duration-150 ease-[var(--ease-out-soft)]',
+            'hover:scale-[1.06] active:scale-95',
             size === 'sm' ? 'h-6 w-6' : 'h-7 w-7'
           )}
           aria-label="Pick a color"
         >
           <span className="absolute inset-0" style={{ background: value }} />
+          {/* The same top hairline every raised control gets, drawn over the
+              swatch so the colour itself stays true. */}
+          <span className="pointer-events-none absolute inset-0 rounded-[6px] shadow-[inset_0_1px_0_0_#ffffff33,inset_0_-1px_0_0_#0000002e]" />
         </button>
       </RPopover.Trigger>
       <RPopover.Portal>
         <RPopover.Content
           sideOffset={8}
           align="end"
-          className="animate-pop z-50 w-[220px] rounded-xl border border-hair bg-ink-2/97 p-3 shadow-2xl shadow-black/60 backdrop-blur-2xl"
+          className="sk-pop animate-pop z-50 w-[220px] rounded-pop p-3"
         >
           <div className="grid grid-cols-6 gap-1.5">
             {swatches.map((color) => (
@@ -424,10 +564,10 @@ export function ColorPicker({
                   onCommit?.()
                 }}
                 className={cn(
-                  'focus-ring h-6 w-6 rounded-md border transition-transform hover:scale-110',
+                  'focus-ring h-6 w-6 rounded-[6px] border transition-transform duration-150 ease-[var(--ease-out-soft)] hover:scale-110',
                   solid.toLowerCase() === color.toLowerCase()
-                    ? 'border-brand-soft ring-2 ring-brand/40'
-                    : 'border-hair-strong'
+                    ? 'sk-swatch-on border-brand-soft'
+                    : 'border-hair-strong shadow-[inset_0_1px_0_0_#ffffff2e]'
                 )}
                 style={{ background: color }}
                 aria-label={color}
@@ -438,9 +578,11 @@ export function ColorPicker({
             <input
               type="color"
               value={solid}
-              onChange={(e) => onChange(allowAlpha ? e.target.value + (value.slice(7) || '') : e.target.value)}
+              onChange={(e) =>
+                onChange(allowAlpha ? e.target.value + (value.slice(7) || '') : e.target.value)
+              }
               onBlur={onCommit}
-              className="h-7 w-9 cursor-pointer rounded-md border border-hair bg-transparent p-0"
+              className="sk-field h-8 w-9 cursor-pointer rounded-ctl p-1"
             />
             <Input
               value={value}
@@ -456,9 +598,15 @@ export function ColorPicker({
   )
 }
 
+/* ---------------------------------- misc --------------------------------- */
+
 export function Kbd({ children }: { children: React.ReactNode }): React.JSX.Element {
   return (
-    <kbd className="rounded border border-hair bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-text-3">
+    <kbd
+      className="inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-[5px] border border-hair bg-white/[0.07] px-1
+                 font-sans text-[10px] font-medium leading-none text-text-2
+                 shadow-[inset_0_1px_0_0_#ffffff1f,0_1px_1px_0_#00000059]"
+    >
       {children}
     </kbd>
   )
@@ -477,7 +625,7 @@ export function Empty({
 }): React.JSX.Element {
   return (
     <div className="flex flex-col items-center justify-center gap-3 px-6 py-10 text-center">
-      <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-hair bg-white/4 text-text-3">
+      <div className="sk-well flex h-11 w-11 items-center justify-center rounded-[13px] text-text-3">
         {icon}
       </div>
       <div>

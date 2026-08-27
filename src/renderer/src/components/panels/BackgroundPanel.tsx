@@ -65,10 +65,10 @@ export function BackgroundPanel(): React.JSX.Element {
               patchBackground({ kind: 'auto' })
             }}
             className={cn(
-              'focus-ring flex h-7 flex-1 items-center justify-center gap-1.5 rounded-lg border border-hair text-[11.5px] transition-colors',
+              'focus-ring flex h-8 flex-1 items-center justify-center gap-1.5 rounded-ctl border text-[11.5px] font-medium',
               background.kind === 'auto'
-                ? 'bg-brand/18 text-brand-soft'
-                : 'bg-white/4 text-text-2 hover:bg-white/8'
+                ? 'sk-selected border-transparent'
+                : 'sk-raise bg-ink-3 text-text-2'
             )}
           >
             <Wand2 size={12} /> Auto from image
@@ -79,10 +79,10 @@ export function BackgroundPanel(): React.JSX.Element {
               patchBackground({ kind: 'transparent' })
             }}
             className={cn(
-              'focus-ring flex h-7 flex-1 items-center justify-center gap-1.5 rounded-lg border border-hair text-[11.5px] transition-colors',
+              'focus-ring flex h-8 flex-1 items-center justify-center gap-1.5 rounded-ctl border text-[11.5px] font-medium',
               background.kind === 'transparent'
-                ? 'bg-brand/18 text-brand-soft'
-                : 'bg-white/4 text-text-2 hover:bg-white/8'
+                ? 'sk-selected border-transparent'
+                : 'sk-raise bg-ink-3 text-text-2'
             )}
           >
             <X size={12} /> None
@@ -99,8 +99,10 @@ export function BackgroundPanel(): React.JSX.Element {
                   key={g}
                   onClick={() => setGroup(g)}
                   className={cn(
-                    'focus-ring h-6 rounded-md px-2 text-[11px] transition-colors',
-                    group === g ? 'bg-white/12 text-text-1' : 'text-text-3 hover:text-text-2'
+                    'focus-ring h-6 rounded-[7px] px-2 text-[11px] font-medium transition-[background-color,color,box-shadow] duration-150',
+                    group === g
+                      ? 'bg-ink-4 text-text-1 shadow-[var(--shadow-raise)]'
+                      : 'text-text-3 hover:bg-white/[0.05] hover:text-text-2'
                   )}
                 >
                   {g}
@@ -113,7 +115,7 @@ export function BackgroundPanel(): React.JSX.Element {
                   key={preset.id}
                   title={preset.name}
                   onClick={() => applyGradient(preset.id)}
-                  className="focus-ring aspect-square rounded-lg border border-hair-strong transition-transform hover:scale-108"
+                  className="focus-ring aspect-square rounded-ctl border border-hair-strong shadow-[var(--shadow-raise)] transition-transform duration-150 ease-[var(--ease-out-soft)] hover:scale-108"
                   style={{
                     background: gradientCss(preset.def.stops, preset.def.angle, preset.def.type)
                   }}
@@ -197,7 +199,7 @@ export function BackgroundPanel(): React.JSX.Element {
                     }
                   })
                 }}
-                className="focus-ring flex h-7 w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-hair-strong text-[11.5px] text-text-3 hover:text-text-1"
+                className="focus-ring flex h-8 w-full items-center justify-center gap-1.5 rounded-ctl border border-dashed border-hair-strong text-[11.5px] font-medium text-text-3 transition-colors duration-150 hover:border-brand/60 hover:bg-brand/[0.07] hover:text-text-1"
               >
                 <Plus size={12} /> Add stop
               </button>
@@ -213,7 +215,7 @@ export function BackgroundPanel(): React.JSX.Element {
               <button
                 key={preset.id}
                 onClick={() => applyMesh(preset.id)}
-                className="focus-ring relative aspect-[4/3] overflow-hidden rounded-lg border border-hair-strong transition-transform hover:scale-105"
+                className="focus-ring relative aspect-[4/3] overflow-hidden rounded-ctl border border-hair-strong shadow-[var(--shadow-raise)] transition-transform duration-150 ease-[var(--ease-out-soft)] hover:scale-105"
                 style={{ background: preset.def.base }}
                 title={preset.name}
               >
@@ -287,10 +289,10 @@ export function BackgroundPanel(): React.JSX.Element {
                   patchBackground({ solid: color })
                 }}
                 className={cn(
-                  'focus-ring aspect-square rounded-lg border transition-transform hover:scale-108',
+                  'focus-ring aspect-square rounded-ctl border transition-transform duration-150 ease-[var(--ease-out-soft)] hover:scale-108',
                   background.solid.toLowerCase() === color.toLowerCase()
-                    ? 'border-brand-soft ring-2 ring-brand/40'
-                    : 'border-hair-strong'
+                    ? 'sk-swatch-on border-brand-soft'
+                    : 'border-hair-strong shadow-[var(--shadow-raise)]'
                 )}
                 style={{ background: color }}
               />
@@ -310,7 +312,7 @@ export function BackgroundPanel(): React.JSX.Element {
         <Section title="Image">
           <button
             onClick={pickImage}
-            className="focus-ring flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-dashed border-hair-strong text-[12px] text-text-2 hover:bg-white/5 hover:text-text-1"
+            className="focus-ring flex h-10 w-full items-center justify-center gap-2 rounded-ctl border border-dashed border-hair-strong text-[12px] font-medium text-text-2 transition-colors duration-150 hover:border-brand/60 hover:bg-brand/[0.07] hover:text-text-1"
           >
             <ImagePlus size={14} />
             {background.image.src ? 'Replace image' : 'Choose an image'}
@@ -419,7 +421,7 @@ export function WatermarkSection(): React.JSX.Element {
             value={watermark.text}
             onChange={(e) => patchWatermark({ text: e.target.value })}
             placeholder="Your text"
-            className="focus-ring h-7 w-full rounded-lg border border-hair bg-white/5 px-2.5 text-[12px] text-text-1 placeholder:text-text-3"
+            className="sk-field h-8 w-full rounded-ctl px-2.5 text-[12px] text-text-1 placeholder:text-text-3"
           />
           <Row label="Position">
             <Select

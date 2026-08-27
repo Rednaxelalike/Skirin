@@ -21,7 +21,7 @@ export function LooksSection(): React.JSX.Element {
             key={look.id}
             onClick={() => applyLook(look)}
             title={look.description}
-            className="focus-ring group flex h-[38px] items-center gap-2 rounded-lg border border-hair bg-white/4 px-2.5 text-left transition-colors hover:border-hair-strong hover:bg-white/8"
+            className="focus-ring sk-raise group flex h-[38px] items-center gap-2 rounded-ctl bg-ink-3 px-2.5 text-left"
           >
             <Sparkles size={13} className="shrink-0 text-text-3 group-hover:text-brand-soft" />
             <span className="truncate text-[12px] text-text-1">{look.name}</span>
@@ -35,7 +35,7 @@ export function LooksSection(): React.JSX.Element {
             <div key={preset.id} className="flex items-center gap-1.5">
               <button
                 onClick={() => applyPreset(preset)}
-                className="focus-ring h-7 flex-1 truncate rounded-lg bg-white/4 px-2.5 text-left text-[12px] text-text-1 hover:bg-white/8"
+                className="focus-ring sk-raise h-7 flex-1 truncate rounded-ctl bg-ink-3 px-2.5 text-left text-[12px] text-text-1"
               >
                 {preset.name}
               </button>
@@ -52,7 +52,7 @@ export function LooksSection(): React.JSX.Element {
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Save current look as…"
-          className="focus-ring h-7 min-w-0 flex-1 rounded-lg border border-hair bg-white/5 px-2.5 text-[11.5px] text-text-1 placeholder:text-text-3"
+          className="sk-field h-8 min-w-0 flex-1 rounded-ctl px-2.5 text-[11.5px] text-text-1 placeholder:text-text-3"
           onKeyDown={(e) => {
             if (e.key === 'Enter' && name.trim()) {
               savePreset(name.trim())
@@ -66,7 +66,7 @@ export function LooksSection(): React.JSX.Element {
             savePreset(name.trim())
             setName('')
           }}
-          className="focus-ring h-7 shrink-0 rounded-lg bg-white/8 px-2.5 text-[11.5px] text-text-1 hover:bg-white/14 disabled:opacity-35"
+          className="focus-ring sk-raise h-8 shrink-0 rounded-ctl px-2.5 text-[11.5px] font-medium text-text-1 disabled:pointer-events-none disabled:opacity-35"
         >
           Save
         </button>
@@ -100,10 +100,10 @@ export function FramePanel(): React.JSX.Element {
                 patchCanvas({ ratio: ratio.id })
               }}
               className={cn(
-                'focus-ring h-7 rounded-lg border text-[11.5px] font-medium transition-colors',
+                'focus-ring h-7 rounded-ctl border text-[11.5px] font-medium',
                 canvas.ratio === ratio.id
-                  ? 'border-brand/50 bg-brand/16 text-brand-soft'
-                  : 'border-hair bg-white/4 text-text-2 hover:bg-white/8'
+                  ? 'sk-selected border-transparent'
+                  : 'sk-raise bg-ink-3 text-text-2'
               )}
             >
               {ratio.label}
@@ -373,7 +373,7 @@ export function FramePanel(): React.JSX.Element {
             snapshot()
             patchFrame({ tiltX: 0, tiltY: 0, rotate: 0, offsetX: 0, offsetY: 0, scale: 1 })
           }}
-          className="focus-ring h-7 w-full rounded-lg bg-white/5 text-[11.5px] text-text-2 hover:bg-white/10 hover:text-text-1"
+          className="focus-ring sk-raise h-8 w-full rounded-ctl bg-ink-3 text-[11.5px] font-medium text-text-2 hover:text-text-1"
         >
           Reset transform
         </button>
@@ -415,14 +415,14 @@ export function FramePanel(): React.JSX.Element {
                 value={frame.browser.url}
                 onChange={(e) => patchBrowser({ url: e.target.value })}
                 placeholder="https://example.com"
-                className="focus-ring h-7 w-full rounded-lg border border-hair bg-white/5 px-2.5 text-[12px] text-text-1 placeholder:text-text-3"
+                className="sk-field h-8 w-full rounded-ctl px-2.5 text-[12px] text-text-1 placeholder:text-text-3"
               />
             ) : (
               <input
                 value={frame.browser.title}
                 onChange={(e) => patchBrowser({ title: e.target.value })}
                 placeholder="Window title"
-                className="focus-ring h-7 w-full rounded-lg border border-hair bg-white/5 px-2.5 text-[12px] text-text-1 placeholder:text-text-3"
+                className="sk-field h-8 w-full rounded-ctl px-2.5 text-[12px] text-text-1 placeholder:text-text-3"
               />
             )}
           </>

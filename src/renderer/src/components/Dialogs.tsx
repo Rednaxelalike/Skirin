@@ -25,7 +25,7 @@ import type {
 } from '@shared/types'
 import { useEditor } from '@/store/editor'
 import { LOOKS } from '@/lib/presets'
-import { Button, Empty, Kbd, Row, Section, Segmented, Select, Slider, Switch } from './ui'
+import { Button, Empty, Input, Kbd, Row, Section, Segmented, Select, Slider, Switch } from './ui'
 import { useUpdateStatus } from './UpdatePill'
 import { cn } from '@/lib/utils'
 
@@ -52,7 +52,8 @@ function Shell({
         <Dialog.Overlay className="animate-fade fixed inset-0 z-40 bg-black/55 backdrop-blur-sm" />
         <Dialog.Content
           className={cn(
-            'animate-pop fixed left-1/2 top-1/2 z-50 flex max-h-[82vh] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-hair bg-ink-1/96 shadow-2xl shadow-black/70 backdrop-blur-2xl',
+            'animate-pop fixed left-1/2 top-1/2 z-50 flex max-h-[82vh] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden',
+            'rounded-dialog border border-hair bg-ink-1/[0.96] shadow-[var(--shadow-dialog)] backdrop-blur-2xl',
             width
           )}
         >
@@ -65,7 +66,7 @@ function Shell({
                 </Dialog.Description>
               )}
             </div>
-            <Dialog.Close className="focus-ring -mr-1 -mt-1 flex h-7 w-7 items-center justify-center rounded-lg text-text-3 hover:bg-white/8 hover:text-text-1">
+            <Dialog.Close className="focus-ring -mr-1 -mt-1 flex h-7 w-7 items-center justify-center rounded-[7px] text-text-3 transition-colors duration-150 hover:bg-white/[0.08] hover:text-text-1">
               <X size={14} />
             </Dialog.Close>
           </header>
@@ -116,7 +117,7 @@ export function WindowPicker({
         {sources === null ? (
           <div className="grid grid-cols-3 gap-3">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-[124px] animate-pulse rounded-xl bg-white/5" />
+              <div key={i} className="sk-well h-[124px] animate-pulse rounded-panel" />
             ))}
           </div>
         ) : sources.length === 0 ? (
@@ -136,7 +137,7 @@ export function WindowPicker({
               <button
                 key={source.id}
                 onClick={() => void pick(source.id)}
-                className="focus-ring group overflow-hidden rounded-xl border border-hair bg-white/3 text-left transition-colors hover:border-brand/50 hover:bg-white/7"
+                className="focus-ring sk-raise group overflow-hidden rounded-panel bg-ink-3 text-left hover:border-brand/50"
               >
                 <div className="flex h-[104px] items-center justify-center overflow-hidden bg-black/30 p-2">
                   <img
@@ -206,7 +207,7 @@ export function HistoryDialog({
               {items.map((item) => (
                 <div
                   key={item.id}
-                  className="group overflow-hidden rounded-xl border border-hair bg-white/3"
+                  className="sk-raise group overflow-hidden rounded-panel bg-ink-3"
                 >
                   <button
                     onClick={() => {
@@ -382,10 +383,10 @@ function ShortcutField({
       onClick={() => setRecording(true)}
       onBlur={() => setRecording(false)}
       className={cn(
-        'focus-ring h-7 min-w-[150px] rounded-lg border px-2.5 font-mono text-[11px] transition-colors',
+        'h-8 min-w-[150px] rounded-ctl border px-2.5 font-mono text-[11px]',
         recording
-          ? 'border-brand bg-brand/12 text-brand-soft'
-          : 'border-hair bg-white/5 text-text-2 hover:bg-white/8'
+          ? 'sk-well border-brand text-brand-soft shadow-[var(--shadow-well),var(--ring-brand)]'
+          : 'sk-field text-text-2'
       )}
     >
       {recording ? 'Press a combination…' : value.replace(/\+/g, ' + ')}
@@ -691,10 +692,10 @@ export function SettingsDialog({
           </Button>
         </Row>
         <Row label="Filename">
-          <input
+          <Input
             value={settings.filenameTemplate}
             onChange={(e) => void patch({ filenameTemplate: e.target.value })}
-            className="focus-ring h-7 w-[240px] rounded-lg border border-hair bg-white/5 px-2.5 font-mono text-[11px] text-text-1"
+            className="w-[240px] font-mono text-[11px]"
           />
         </Row>
         <Row label="Default format">
