@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { AppWindow, ClipboardPaste, Crop, ImageDown, Monitor } from 'lucide-react'
 import { useEditor } from '@/store/editor'
-import { CropMarks } from './TitleBar'
+import { SkirinMark } from './SkirinMark'
 import { Kbd } from './ui'
 import { cn } from '@/lib/utils'
 
@@ -76,9 +76,7 @@ export function Welcome({ onOpenWindows }: { onOpenWindows: () => void }): React
             : 'border-hair'
         )}
       >
-        <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-dialog bg-gradient-to-br from-[#7f5dff] via-[#a855f7] to-[#ff6ba8] shadow-[inset_0_1px_0_0_#ffffff59,0_2px_4px_0_#00000059,0_14px_44px_-10px_#7f5dffb3]">
-          <CropMarks className="h-8 w-8" />
-        </div>
+        <SkirinMark className="mb-5 h-14 w-14 drop-shadow-[0_12px_30px_#04070ca6]" />
 
         <h1 className="text-[19px] font-semibold tracking-tight text-text-1">
           Make a screenshot worth sharing
