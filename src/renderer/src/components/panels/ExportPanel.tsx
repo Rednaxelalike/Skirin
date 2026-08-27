@@ -8,7 +8,7 @@ import { suggestedName } from '@/lib/exporter'
 import type { ExportPhase } from '@/lib/exporter'
 import { exportImage } from '@/lib/export-client'
 import { formatBytes } from '@/lib/utils'
-import { Row, Section, Segmented, Slider, Switch } from '../ui'
+import { Button, Row, Section, Segmented, Slider, Switch } from '../ui'
 
 const PHASE_LABEL: Record<ExportPhase, string> = {
   composing: 'Composing…',
@@ -184,7 +184,7 @@ export function ExportPanel(): React.JSX.Element {
           />
         </Row>
         {dimensions && (
-          <div className="rounded-lg border border-hair bg-white/3 px-2.5 py-2 font-mono text-[11px] tabular-nums text-text-3">
+          <div className="sk-well rounded-ctl px-2.5 py-2 font-mono text-[11px] tabular-nums text-text-3">
             {dimensions.width} × {dimensions.height} px
           </div>
         )}
@@ -217,47 +217,42 @@ export function ExportPanel(): React.JSX.Element {
 
       <Section title="Send it">
         <div className="grid grid-cols-2 gap-2">
-          <button
-            onClick={() => void copy()}
-            disabled={!!busy}
-            className="focus-ring flex h-9 items-center justify-center gap-2 rounded-lg bg-white/8 text-[12px] font-medium text-text-1 hover:bg-white/14 disabled:opacity-40"
-          >
+          <Button variant="solid" size="lg" onClick={() => void copy()} disabled={!!busy}>
             <ClipboardCopy size={14} /> Copy
-          </button>
-          <button
-            onClick={() => void save(false)}
-            disabled={!!busy}
-            className="focus-ring flex h-9 items-center justify-center gap-2 rounded-lg bg-brand text-[12px] font-medium text-white hover:bg-brand/88 disabled:opacity-40"
-          >
+          </Button>
+          <Button variant="brand" size="lg" onClick={() => void save(false)} disabled={!!busy}>
             <Download size={14} /> Save
-          </button>
+          </Button>
         </div>
-        <button
+        <Button
+          variant="ghost"
           onClick={() => void save(true)}
           disabled={!!busy}
-          className="focus-ring flex h-8 w-full items-center justify-center gap-2 rounded-lg border border-hair text-[12px] text-text-2 hover:bg-white/6 hover:text-text-1 disabled:opacity-40"
+          className="w-full"
         >
           <Save size={13} /> Save as…
-        </button>
+        </Button>
         {busy && (
           // Says why all three buttons just went grey. `busy` is app-wide, so
           // this covers the annotate panel's OCR pass too — an export and a
           // scan both want the whole machine, and neither runs while the other
           // does.
-          <div className="flex items-center gap-2 rounded-lg border border-hair bg-white/3 px-2.5 py-2 text-[11px] text-text-2">
+          <div className="sk-well flex items-center gap-2 rounded-ctl px-2.5 py-2 text-[11px] text-text-2">
             <Loader2 size={12} className="shrink-0 animate-spin text-brand" />
             {busy}
           </div>
         )}
         {appSettings && (
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => void window.skirin.shell.open(appSettings.saveDir)}
-            className="focus-ring flex h-8 w-full items-center justify-center gap-2 rounded-lg text-[11.5px] text-text-3 hover:bg-white/5 hover:text-text-2"
+            className="w-full text-text-3"
           >
             <FolderOpen size={13} /> Open captures folder
-          </button>
+          </Button>
         )}
-        <div className="flex items-start gap-2 rounded-lg border border-hair bg-white/3 px-2.5 py-2 text-[11px] leading-relaxed text-text-3">
+        <div className="sk-well flex items-start gap-2 rounded-ctl px-2.5 py-2 text-[11px] leading-relaxed text-text-3">
           <Check size={12} className="mt-0.5 shrink-0 text-emerald-400" />
           Saving also copies the result to your clipboard, so you can paste it straight into
           Slack, Notion or a PR.

@@ -18,7 +18,19 @@ import { TOOL_LABELS, isEffect } from '@/lib/annotations'
 import { buildContentCanvas } from '@/lib/render'
 import { DEFAULT_KINDS, KIND_LABELS, detectSensitive, toAnnotations } from '@/lib/ocr'
 import type { SensitiveKind } from '@/lib/ocr'
-import { ColorPicker, Empty, IconButton, Row, Section, Segmented, Select, Slider, Switch } from '../ui'
+import {
+  Button,
+  Checkbox,
+  ColorPicker,
+  Empty,
+  IconButton,
+  Row,
+  Section,
+  Segmented,
+  Select,
+  Slider,
+  Switch
+} from '../ui'
 import { cn, uid } from '@/lib/utils'
 
 export function AnnotatePanel(): React.JSX.Element {
@@ -226,7 +238,7 @@ function TextControls({
         value={annotation.text}
         onChange={(e) => patch({ text: e.target.value } as Partial<Annotation>)}
         rows={2}
-        className="focus-ring w-full resize-none rounded-lg border border-hair bg-white/5 px-2.5 py-1.5 text-[12px] text-text-1"
+        className="sk-field w-full resize-none rounded-ctl px-2.5 py-1.5 text-[12px] leading-relaxed text-text-1"
       />
       <Slider
         label="Size"
@@ -389,20 +401,16 @@ function SmartRedactSection(): React.JSX.Element {
       <p className="text-[11.5px] leading-relaxed text-text-3">
         Reads the capture on-device and hides anything that looks private.
       </p>
-      <div className="flex flex-wrap gap-1">
+      {/* Six independent choices, so six checkboxes — a row of pills reads as
+          "pick one" no matter how it is coloured. */}
+      <div className="grid grid-cols-2 gap-x-3 gap-y-2">
         {(['email', 'phone', 'card', 'token', 'ip', 'url'] as SensitiveKind[]).map((kind) => (
-          <button
+          <Checkbox
             key={kind}
-            onClick={() => toggle(kind)}
-            className={cn(
-              'focus-ring h-6 rounded-md border px-2 text-[11px] transition-colors',
-              kinds.includes(kind)
-                ? 'border-brand/50 bg-brand/16 text-brand-soft'
-                : 'border-hair bg-white/4 text-text-3 hover:text-text-2'
-            )}
-          >
-            {KIND_LABELS[kind]}
-          </button>
+            checked={kinds.includes(kind)}
+            onChange={() => toggle(kind)}
+            label={KIND_LABELS[kind]}
+          />
         ))}
       </div>
       <Row label="Style">
@@ -417,14 +425,15 @@ function SmartRedactSection(): React.JSX.Element {
           className="w-[160px]"
         />
       </Row>
-      <button
+      <Button
+        variant="solid"
         onClick={run}
         disabled={!!busy || !capture || !kinds.length}
-        className="focus-ring flex h-8 w-full items-center justify-center gap-2 rounded-lg bg-white/8 text-[12px] font-medium text-text-1 hover:bg-white/14 disabled:opacity-40"
+        className="w-full"
       >
         <ScanSearch size={14} />
         {busy ?? 'Find and hide sensitive data'}
-      </button>
+      </Button>
     </Section>
   )
 }
@@ -467,14 +476,15 @@ function LayersSection(): React.JSX.Element {
               key={annotation.id}
               onClick={() => select(annotation.id)}
               className={cn(
-                'group flex h-8 cursor-default items-center gap-2 rounded-lg border px-2 transition-colors',
+                'group flex h-8 cursor-default items-center gap-2 rounded-ctl border px-2',
+                'transition-[background-color,border-color,box-shadow] duration-150',
                 selectedId === annotation.id
-                  ? 'border-brand/45 bg-brand/12'
-                  : 'border-transparent bg-white/3 hover:bg-white/7'
+                  ? 'sk-selected border-transparent'
+                  : 'sk-raise bg-ink-3'
               )}
             >
               <span
-                className="h-3 w-3 shrink-0 rounded-full border border-black/30"
+                className="h-3 w-3 shrink-0 rounded-full border border-black/30 shadow-[var(--shadow-thumb)]"
                 style={{ background: annotation.color }}
               />
               <span className="min-w-0 flex-1 truncate text-[11.5px] text-text-2">

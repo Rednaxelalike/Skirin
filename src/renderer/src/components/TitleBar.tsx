@@ -119,7 +119,7 @@ export function TitleBar({
       <div className="flex-1" />
 
       {capture && (
-        <div className="no-drag mr-1 flex items-center gap-0.5 rounded-lg bg-white/5 px-0.5">
+        <div className="no-drag sk-well mr-1 flex items-center gap-0.5 rounded-[10px] p-0.5">
           <IconButton
             className="h-7 w-7"
             onClick={() =>
@@ -131,7 +131,7 @@ export function TitleBar({
           </IconButton>
           <button
             onClick={() => setZoom(zoom === 'fit' ? 1 : 'fit')}
-            className="focus-ring h-7 min-w-[46px] rounded-md px-1.5 font-mono text-[11px] tabular-nums text-text-2 hover:bg-white/8 hover:text-text-1"
+            className="focus-ring h-7 min-w-[46px] rounded-[6px] px-1.5 font-mono text-[11px] tabular-nums text-text-2 transition-colors duration-150 hover:bg-white/[0.08] hover:text-text-1"
           >
             {zoomLabel}
           </button>
@@ -200,7 +200,7 @@ export function TitleBar({
 
 function Mark(): React.JSX.Element {
   return (
-    <span className="flex h-[19px] w-[19px] items-center justify-center rounded-[6px] bg-gradient-to-br from-[#7c6cff] via-[#a855f7] to-[#ff6ba8]">
+    <span className="flex h-[19px] w-[19px] items-center justify-center rounded-[6px] bg-gradient-to-br from-[#7f5dff] via-[#a855f7] to-[#ff6ba8] shadow-[inset_0_1px_0_0_#ffffff54,0_2px_8px_-2px_#7f5dffa6]">
       <CropMarks className="h-[11px] w-[11px]" />
     </span>
   )

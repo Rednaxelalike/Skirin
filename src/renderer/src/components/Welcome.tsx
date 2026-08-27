@@ -69,11 +69,14 @@ export function Welcome({ onOpenWindows }: { onOpenWindows: () => void }): React
     >
       <div
         className={cn(
-          'flex w-full max-w-[540px] flex-col items-center rounded-2xl border border-dashed p-9 transition-colors',
-          dragging ? 'border-brand bg-brand/8' : 'border-hair'
+          'flex w-full max-w-[540px] flex-col items-center rounded-dialog border border-dashed p-9',
+          'transition-[background-color,border-color,box-shadow] duration-200 ease-[var(--ease-out-soft)]',
+          dragging
+            ? 'sk-swatch-on border-brand bg-brand/[0.08]'
+            : 'border-hair'
         )}
       >
-        <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#7c6cff] via-[#a855f7] to-[#ff6ba8] shadow-[0_12px_40px_-10px_rgba(124,108,255,0.7)]">
+        <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-dialog bg-gradient-to-br from-[#7f5dff] via-[#a855f7] to-[#ff6ba8] shadow-[inset_0_1px_0_0_#ffffff59,0_2px_4px_0_#00000059,0_14px_44px_-10px_#7f5dffb3]">
           <CropMarks className="h-8 w-8" />
         </div>
 
@@ -90,9 +93,9 @@ export function Welcome({ onOpenWindows }: { onOpenWindows: () => void }): React
             <button
               key={action.title}
               onClick={() => void action.run()}
-              className="focus-ring group flex items-center gap-3 rounded-xl border border-hair bg-white/4 px-3.5 py-3 text-left transition-colors hover:border-hair-strong hover:bg-white/8"
+              className="focus-ring sk-raise group flex items-center gap-3 rounded-panel bg-ink-3 px-3.5 py-3 text-left"
             >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/6 text-text-2 transition-colors group-hover:text-brand-soft">
+              <span className="sk-well flex h-9 w-9 shrink-0 items-center justify-center rounded-ctl text-text-2 transition-colors duration-150 group-hover:text-brand-soft">
                 {action.icon}
               </span>
               <span className="min-w-0">

@@ -63,7 +63,7 @@ export function UpdatePill(): React.JSX.Element | null {
   }
 
   const base =
-    'no-drag focus-ring flex h-7 items-center gap-1.5 rounded-lg px-2 text-[11.5px] font-medium transition-colors'
+    'no-drag focus-ring flex h-7 items-center gap-1.5 rounded-ctl border px-2 text-[11.5px] font-medium transition-[background-color,box-shadow] duration-150'
 
   if (status.state === 'available') {
     const start = (): void => {
@@ -75,7 +75,7 @@ export function UpdatePill(): React.JSX.Element | null {
     return (
       <button
         onClick={start}
-        className={`${base} bg-brand/15 text-brand hover:bg-brand/25`}
+        className={`${base} sk-selected border-transparent`}
         title={`Skirin ${status.version} is available — click to install it`}
       >
         <ArrowUpCircle size={13} />
@@ -87,7 +87,7 @@ export function UpdatePill(): React.JSX.Element | null {
   if (status.state === 'downloading') {
     return (
       <span
-        className={`${base} bg-white/6 text-text-2`}
+        className={`${base} sk-well border-hair text-text-2`}
         title="Downloading — Skirin restarts automatically when this finishes"
       >
         <Loader2 size={13} className="animate-spin" />
@@ -99,7 +99,7 @@ export function UpdatePill(): React.JSX.Element | null {
   return (
     <button
       onClick={() => void window.skirin.update.install()}
-      className={`${base} bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25`}
+      className={`${base} border-emerald-400/30 bg-emerald-500/15 text-emerald-300 shadow-[0_2px_10px_-4px_#10b981a6] hover:bg-emerald-500/25`}
       title={`Restarting into Skirin ${status.version}`}
     >
       <RotateCw size={13} />
