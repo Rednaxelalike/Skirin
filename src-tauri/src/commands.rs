@@ -111,11 +111,12 @@ pub fn capture_displays() -> Vec<DisplayInfo> {
 #[tauri::command]
 pub async fn capture_window_sources(app: AppHandle) -> Vec<WindowSource> {
     blocking(move || {
-        // Hidden first, or the picker lists — and thumbnails — the editor.
-        app::with_hidden_editor(&app, || {
-            let state = app.state::<App>();
-            capture::list_window_sources(&state.engine, &state.registry)
-        })
+        // The editor stays up and lists itself. It was hidden here so that it
+        // could not turn up in its own picker, which is the exact reason
+        // Skirin was the one window nobody could grab.
+        let keep = app::main_hwnd(&app);
+        let state = app.state::<App>();
+        capture::list_window_sources(&state.engine, &state.registry, keep)
     })
     .await
     .unwrap_or_default()
@@ -125,7 +126,15 @@ pub async fn capture_window_sources(app: AppHandle) -> Vec<WindowSource> {
 pub async fn capture_window(app: AppHandle, id: String) -> Option<Capture> {
     let hwnd: isize = id.parse().ok()?;
     blocking(move || {
-        let capture = app::with_hidden_editor(&app, || app::capture_window(&app, hwnd));
+        let capture = if app::main_hwnd(&app) == Some(hwnd) {
+            // Hiding the editor to photograph the editor would hand back an
+            // empty frame. What has to go is the picker sitting on top of it,
+            // and that is a repaint away rather than a window change.
+            app::settle();
+            app::capture_window(&app, hwnd)
+        } else {
+            app::with_hidden_editor(&app, || app::capture_window(&app, hwnd))
+        };
         app::deliver(&app, capture)
     })
     .await?

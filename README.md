@@ -112,6 +112,11 @@ exactly what you get — no flicker, no chasing a moving target.
 - `F` grabs the whole display, `R` repeats your last region, `Esc` cancels.
 - Multi-monitor aware, including mixed-DPI setups.
 
+**The window picker** lists Skirin itself alongside every other window, so its
+own interface can be captured and edited in place. Every other window Skirin
+owns — the selection overlays — still stays out of the list, and out of the
+overlay's snap targets.
+
 After a capture Skirin can open the editor, copy, save, or any combination —
 set it under Settings → After a capture.
 

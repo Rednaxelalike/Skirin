@@ -345,14 +345,18 @@ pub fn shot_for_rect<'a>(shots: &'a [Shot], rect: &Rect) -> Option<&'a Shot> {
 /// Every window is grabbed on the one warm capture thread and downscaled here,
 /// then parked in the registry's thumbnail pool so the listing costs one small
 /// IPC message instead of a megabyte of base64 per window.
-pub fn list_window_sources(engine: &Engine, registry: &Registry) -> Vec<WindowSource> {
+pub fn list_window_sources(
+    engine: &Engine,
+    registry: &Registry,
+    keep: Option<isize>,
+) -> Vec<WindowSource> {
     const THUMB_W: u32 = 480;
     const THUMB_H: u32 = 300;
 
     let mut batch: Vec<(String, Frame)> = Vec::new();
     let mut sources: Vec<WindowSource> = Vec::new();
 
-    for window in windows_list::enumerate() {
+    for window in windows_list::enumerate_with(keep) {
         let Some(image) = engine.window(window.hwnd, window.rect) else {
             continue;
         };

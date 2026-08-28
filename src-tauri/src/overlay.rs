@@ -128,7 +128,9 @@ pub fn begin(app: &AppHandle) -> Option<Capture> {
     if shots.is_empty() {
         return None;
     }
-    let native_windows = capture::windows_list::enumerate();
+    // The editor snaps like any other window when it is on screen; when it is
+    // hidden for the capture it drops out on its own.
+    let native_windows = capture::windows_list::enumerate_with(crate::app::main_hwnd(app));
 
     let (tx, rx): (SyncSender<Option<Capture>>, Receiver<Option<Capture>>) = sync_channel(1);
 

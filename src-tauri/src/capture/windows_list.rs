@@ -104,9 +104,15 @@ fn is_cloaked(hwnd: HWND) -> bool {
     ok.is_ok() && cloaked != 0
 }
 
+struct Walk {
+    list: Vec<NativeWindow>,
+    own_pid: u32,
+    /// The one window of ours the caller is willing to see, or 0.
+    keep: isize,
+}
+
 unsafe extern "system" fn collect(hwnd: HWND, lparam: LPARAM) -> BOOL {
-    let state = unsafe { &mut *(lparam.0 as *mut (Vec<NativeWindow>, u32)) };
-    let (list, own_pid) = (&mut state.0, state.1);
+    let walk = unsafe { &mut *(lparam.0 as *mut Walk) };
 
     unsafe {
         if !IsWindowVisible(hwnd).as_bool() || IsIconic(hwnd).as_bool() {
@@ -144,13 +150,17 @@ unsafe extern "system" fn collect(hwnd: HWND, lparam: LPARAM) -> BOOL {
             return BOOL(1);
         }
 
+        // Our own windows are skipped by default: a selection overlay is not
+        // something anyone means to snap to. The editor is the exception a
+        // caller can ask for by handle, which is how the window picker offers
+        // Skirin itself without the overlays coming along.
         let mut pid = 0u32;
         GetWindowThreadProcessId(hwnd, Some(&mut pid));
-        if pid == own_pid {
+        if pid == walk.own_pid && hwnd.0 as isize != walk.keep {
             return BOOL(1);
         }
 
-        list.push(NativeWindow {
+        walk.list.push(NativeWindow {
             hwnd: hwnd.0 as isize,
             title,
             process: process_name(pid),
@@ -164,12 +174,20 @@ unsafe extern "system" fn collect(hwnd: HWND, lparam: LPARAM) -> BOOL {
 /// `EnumWindows` walks the z-order, so index 0 is the front-most window and a
 /// hit test can stop at the first match.
 pub fn enumerate() -> Vec<NativeWindow> {
-    let mut state: (Vec<NativeWindow>, u32) = (Vec::new(), unsafe { GetCurrentProcessId() });
+    enumerate_with(None)
+}
+
+/// As [`enumerate`], plus one window of Skirin's own — the editor, named by
+/// handle. A hidden editor still drops out on the visibility test above, so
+/// callers can pass it unconditionally.
+pub fn enumerate_with(keep: Option<isize>) -> Vec<NativeWindow> {
+    let mut walk = Walk {
+        list: Vec::new(),
+        own_pid: unsafe { GetCurrentProcessId() },
+        keep: keep.unwrap_or(0),
+    };
     unsafe {
-        let _ = EnumWindows(
-            Some(collect),
-            LPARAM(&mut state as *mut (Vec<NativeWindow>, u32) as isize),
-        );
+        let _ = EnumWindows(Some(collect), LPARAM(&mut walk as *mut Walk as isize));
     }
-    state.0
+    walk.list
 }

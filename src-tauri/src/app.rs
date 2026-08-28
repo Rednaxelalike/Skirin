@@ -61,6 +61,13 @@ pub fn main_window(app: &AppHandle) -> Option<WebviewWindow> {
     app.get_webview_window(MAIN)
 }
 
+/// The editor's native handle. The window picker and the overlay's snap
+/// targets both have to name it in Win32 terms to let it through a filter that
+/// otherwise drops everything from this process.
+pub fn main_hwnd(app: &AppHandle) -> Option<isize> {
+    main_window(app)?.hwnd().ok().map(|hwnd| hwnd.0 as isize)
+}
+
 /// The editor, brought to the front — created first if the tray closed it.
 pub fn show_editor(app: &AppHandle) -> Option<WebviewWindow> {
     let window = match main_window(app) {
@@ -102,6 +109,12 @@ pub fn remember_bounds(app: &AppHandle) {
     }
 }
 
+/// Long enough for the compositor to show the frame the user is looking at
+/// now, rather than the one that was there when the click landed.
+pub fn settle() {
+    std::thread::sleep(std::time::Duration::from_millis(HIDE_SETTLE_MS));
+}
+
 /// Runs `f` with the editor off screen, then puts it back exactly as it was.
 /// Without this the editor ends up in its own screenshot.
 pub fn with_hidden_editor<T>(app: &AppHandle, f: impl FnOnce() -> T) -> T {
@@ -109,7 +122,7 @@ pub fn with_hidden_editor<T>(app: &AppHandle, f: impl FnOnce() -> T) -> T {
 
     if let Some(window) = &window {
         let _ = window.hide();
-        std::thread::sleep(std::time::Duration::from_millis(HIDE_SETTLE_MS));
+        settle();
     }
 
     let result = f();
@@ -283,7 +296,9 @@ pub fn capture_display(app: &AppHandle, id: Option<i64>) -> Option<Capture> {
 
 pub fn capture_window(app: &AppHandle, hwnd: isize) -> Option<Capture> {
     let state = app.state::<App>();
-    let windows = capture::windows_list::enumerate();
+    // Naming the target lets the editor through when it is the target, and
+    // changes nothing when it is not.
+    let windows = capture::windows_list::enumerate_with(Some(hwnd));
     let target = windows.iter().find(|w| w.hwnd == hwnd)?;
 
     let image = state.engine.window(hwnd, target.rect)?;
