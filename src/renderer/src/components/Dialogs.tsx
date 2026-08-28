@@ -251,7 +251,9 @@ const SHORTCUT_HELP: Array<[string, Array<[string, string]>]> = [
       ['Capture the screen', 'Ctrl Shift 2'],
       ['Pick a window', 'Ctrl Shift 3'],
       ['Repeat last region', 'Ctrl Shift 4'],
-      ['Open Skirin', 'Ctrl Shift S']
+      ['Open Skirin', 'Ctrl Shift S'],
+      ['Print Screen, if taken', 'PrtScn'],
+      ['Windows snip, if taken', 'Win Shift S']
     ]
   ],
   [
@@ -579,6 +581,7 @@ export function SettingsDialog({
 }): React.JSX.Element {
   const settings = useEditor((s) => s.settings)
   const setSettings = useEditor((s) => s.setSettings)
+  const presets = useEditor((s) => s.presets)
 
   const patch = async (value: Partial<AppSettings>): Promise<void> => {
     const next = await window.skirin.settings.set(value)
@@ -634,6 +637,29 @@ export function SettingsDialog({
         </Row>
       </Section>
 
+      <Section title="Windows screenshot keys">
+        <Row label="Print Screen" hint="Alt and Win variants stay with Windows">
+          <Switch
+            checked={settings.systemKeys.printScreen}
+            onChange={(printScreen) =>
+              void patch({ systemKeys: { ...settings.systemKeys, printScreen } })
+            }
+          />
+        </Row>
+        <Row label="Win + Shift + S" hint="Taken from the shell before it opens its own snip">
+          <Switch
+            checked={settings.systemKeys.snip}
+            onChange={(snip) => void patch({ systemKeys: { ...settings.systemKeys, snip } })}
+          />
+        </Row>
+        <p className="text-[10.5px] leading-relaxed text-text-3">
+          Either key opens the selection overlay with Skirin left on screen, so a piece of Skirin
+          itself can be in the shot, and the result always lands in the editor whatever
+          &ldquo;After a capture&rdquo; says. Switch them off and Windows has its keys straight
+          back.
+        </p>
+      </Section>
+
       <Section title="After a capture">
         <Row label="What happens next">
           <Select
@@ -649,10 +675,13 @@ export function SettingsDialog({
             className="w-[168px]"
           />
         </Row>
-        <Row label="Default look">
+        <Row label="Default look" hint="What a new session's first capture starts with">
           <Select
             value={settings.defaultPresetId}
-            options={LOOKS.map((l) => ({ value: l.id, label: l.name }))}
+            options={[
+              ...LOOKS.map((l) => ({ value: l.id, label: l.name })),
+              ...presets.map((p) => ({ value: p.id, label: `${p.name} (saved)` }))
+            ]}
             onChange={(defaultPresetId) => void patch({ defaultPresetId })}
             className="w-[140px]"
           />

@@ -86,6 +86,10 @@ export const defaultSettings = (saveDir: string): AppSettings => ({
     lastRegion: 'Control+Shift+4',
     openEditor: 'Control+Shift+S'
   },
+  systemKeys: {
+    printScreen: false,
+    snip: false
+  },
   afterCapture: 'editor',
   saveDir,
   filenameTemplate: 'Skirin {yyyy}-{MM}-{dd} at {HH}.{mm}.{ss}',

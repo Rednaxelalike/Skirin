@@ -89,6 +89,18 @@ Other scripts: `npm run build:renderer` (editor bundle only),
 
 All five are rebindable in Settings, and each one also lives in the tray menu.
 
+**Windows' own screenshot keys** can answer to Skirin instead, from Settings →
+Windows screenshot keys. Neither `PrtScn` nor `Win + Shift + S` can be
+registered as an ordinary accelerator (the shell holds both), so a low-level
+keyboard hook takes them while the switch is on and gives them straight back
+when it is off — nothing is written to the registry and no sign-out is needed.
+`Alt + PrtScn` and `Win + PrtScn` are left to Windows.
+
+These two are also the one capture path that leaves the editor on screen, which
+is what makes it possible to screenshot Skirin itself and edit the result in
+Skirin. The shot always opens in the editor, whatever "After a capture" says.
+Both are off until you turn them on.
+
 **The selection overlay** freezes the screen first, so what you drag over is
 exactly what you get — no flicker, no chasing a moving target.
 
@@ -123,7 +135,15 @@ balance trims uniform edges off the capture so the padding looks even. Crop,
 rotate in 90° steps, flip.
 
 **Looks** — eight one-click presets (Aurora, Studio, Tilt, Paper, Flat, Glass,
-Punch, Ink) on keys `1`–`8`, and you can save your own.
+Punch, Ink) on keys `1`–`8`.
+
+**Your own presets** — name the canvas, backdrop, frame and watermark you have
+tuned and it is saved into `skirin.json`, ready to apply to any later capture
+from the same list. Saving under a name you already used updates that preset
+rather than adding a second one. A saved preset can also be chosen in
+Settings → Default look, which is what a new session's first capture starts
+with. Annotations and the crop are deliberately left out: they belong to one
+screenshot, not to a look.
 
 **Annotations** — arrows (curved, single or double headed, dashed), rectangles,
 ellipses, lines, freehand, text with a backdrop, numbered step markers,
@@ -186,6 +206,7 @@ src-tauri/src/
   lib.rs           wiring: plugins, commands, window events
   app.rs           the main window, and what happens to a capture once it exists
   overlay.rs       per-monitor selection overlays and their lifecycle
+  systemkeys.rs    the keyboard hook that borrows PrtScn and Win+Shift+S
   capture/
     wgc.rs         Windows.Graphics.Capture — the frame grabber
     gdi.rs         BitBlt/PrintWindow fallback

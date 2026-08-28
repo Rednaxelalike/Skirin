@@ -18,7 +18,7 @@ use crate::types::{
     AppInfo, AppSettings, Capture, DisplayInfo, HistoryEntry, OverlayInit, Point, Preset, Rect,
     SaveResult, UpdateStatus, WindowSource,
 };
-use crate::{autostart, shortcuts, tray, updater};
+use crate::{autostart, shortcuts, systemkeys, tray, updater};
 
 /// An image the editor loaded from somewhere other than a capture.
 #[derive(Serialize)]
@@ -48,6 +48,9 @@ pub fn settings_set(app: AppHandle, state: State<'_, App>, patch: Value) -> AppS
         if let Err(error) = tray::apply(&app) {
             eprintln!("[skirin] tray rebuild failed: {error}");
         }
+    }
+    if patch.get("systemKeys").is_some() {
+        systemkeys::apply(&app);
     }
     if patch.get("autoLaunch").is_some() && !tauri::is_dev() {
         autostart::set(next.auto_launch);

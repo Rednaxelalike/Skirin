@@ -326,8 +326,21 @@ export interface Shortcuts {
   openEditor: string
 }
 
+/**
+ * The screenshot keys Windows keeps for itself. Neither can be registered as
+ * an ordinary accelerator — the shell owns them — so answering one means
+ * intercepting it, and that is off until the user asks for it.
+ */
+export interface SystemKeys {
+  /** Print Screen on its own. `Alt` and `Win` variants are left to Windows. */
+  printScreen: boolean
+  /** `Win + Shift + S`, the shell's snip. */
+  snip: boolean
+}
+
 export interface AppSettings {
   shortcuts: Shortcuts
+  systemKeys: SystemKeys
   afterCapture: AfterCapture
   saveDir: string
   filenameTemplate: string

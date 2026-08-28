@@ -15,6 +15,7 @@ pub mod protocol;
 pub mod shortcuts;
 pub mod state;
 pub mod store;
+pub mod systemkeys;
 pub mod tray;
 pub mod types;
 pub mod updater;
@@ -79,6 +80,7 @@ pub fn run() {
             state::remember(&handle);
 
             shortcuts::apply(&handle);
+            systemkeys::apply(&handle);
             if let Err(error) = tray::apply(&handle) {
                 eprintln!("[skirin] tray setup failed: {error}");
             }
