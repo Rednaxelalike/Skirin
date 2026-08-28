@@ -161,9 +161,14 @@ export const useEditor = create<EditorState>((set, get) => {
         scene.canvas = clone(previous.canvas)
         scene.watermark = clone(previous.watermark)
       } else {
-        const settings = get().settings
-        const look = LOOKS.find((l) => l.id === settings?.defaultPresetId)
-        if (look) applyLookTo(scene, look)
+        // Built-in looks and saved presets share one id space, because only
+        // one of the two can be the chosen default.
+        const { settings, presets } = get()
+        const id = settings?.defaultPresetId
+        const saved = presets.find((p) => p.id === id)
+        const look = LOOKS.find((l) => l.id === id)
+        if (saved) applyPresetTo(scene, saved)
+        else if (look) applyLookTo(scene, look)
       }
 
       const hint: Crop = { ...defaultCrop(), ...trim }
@@ -388,35 +393,42 @@ export const useEditor = create<EditorState>((set, get) => {
 
     savePreset(name) {
       const { scene, presets } = get()
-      const preset: Preset = {
-        id: uid('preset-'),
-        name,
-        builtin: false,
-        scene: {
-          canvas: clone(scene.canvas),
-          background: clone(scene.background),
-          frame: clone(scene.frame),
-          watermark: clone(scene.watermark)
-        }
+      const saved: Preset['scene'] = {
+        canvas: clone(scene.canvas),
+        background: clone(scene.background),
+        frame: clone(scene.frame),
+        watermark: clone(scene.watermark)
       }
-      const next = [...presets, preset]
+
+      // Saving over a name that is already taken updates that preset. Two
+      // entries reading the same in the list is not a thing anyone wants, and
+      // it is how you iterate on a look you are still tuning.
+      const existing = presets.find((p) => p.name.toLowerCase() === name.toLowerCase())
+      const next = existing
+        ? presets.map((p) => (p.id === existing.id ? { ...p, scene: saved } : p))
+        : [...presets, { id: uid('preset-'), name, builtin: false, scene: saved }]
+
       set({ presets: next })
       void window.skirin.presets.set(next)
     },
 
     applyPreset(preset) {
-      mutate((scene) => {
-        scene.canvas = clone(preset.scene.canvas)
-        scene.background = clone(preset.scene.background)
-        scene.frame = clone(preset.scene.frame)
-        scene.watermark = clone(preset.scene.watermark)
-      })
+      mutate((scene) => applyPresetTo(scene, preset))
     },
 
     deletePreset(id) {
-      const next = get().presets.filter((p) => p.id !== id)
+      const { presets, settings } = get()
+      const next = presets.filter((p) => p.id !== id)
       set({ presets: next })
       void window.skirin.presets.set(next)
+
+      // Deleting the preset a new session starts with would leave the setting
+      // pointing at nothing, and every capture arriving bare.
+      if (settings?.defaultPresetId === id) {
+        void window.skirin.settings
+          .set({ defaultPresetId: LOOKS[0].id })
+          .then((updated) => get().setSettings(updated))
+      }
     },
 
     setExportSettings(patch) {
@@ -440,7 +452,16 @@ export const useEditor = create<EditorState>((set, get) => {
   }
 })
 
+/** Everything a saved preset carries, over whatever the scene has now. */
+function applyPresetTo(scene: Scene, preset: Preset): void {
+  scene.canvas = clone(preset.scene.canvas)
+  scene.background = clone(preset.scene.background)
+  scene.frame = clone(preset.scene.frame)
+  scene.watermark = clone(preset.scene.watermark)
+}
+
 function applyLookTo(scene: Scene, look: LookPreset): void {
+
   const a = look.apply
   scene.background.kind = a.kind
   if (a.gradientId) {

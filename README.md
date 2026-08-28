@@ -135,7 +135,15 @@ balance trims uniform edges off the capture so the padding looks even. Crop,
 rotate in 90° steps, flip.
 
 **Looks** — eight one-click presets (Aurora, Studio, Tilt, Paper, Flat, Glass,
-Punch, Ink) on keys `1`–`8`, and you can save your own.
+Punch, Ink) on keys `1`–`8`.
+
+**Your own presets** — name the canvas, backdrop, frame and watermark you have
+tuned and it is saved into `skirin.json`, ready to apply to any later capture
+from the same list. Saving under a name you already used updates that preset
+rather than adding a second one. A saved preset can also be chosen in
+Settings → Default look, which is what a new session's first capture starts
+with. Annotations and the crop are deliberately left out: they belong to one
+screenshot, not to a look.
 
 **Annotations** — arrows (curved, single or double headed, dashed), rectangles,
 ellipses, lines, freehand, text with a backdrop, numbered step markers,

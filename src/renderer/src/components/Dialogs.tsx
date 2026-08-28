@@ -581,6 +581,7 @@ export function SettingsDialog({
 }): React.JSX.Element {
   const settings = useEditor((s) => s.settings)
   const setSettings = useEditor((s) => s.setSettings)
+  const presets = useEditor((s) => s.presets)
 
   const patch = async (value: Partial<AppSettings>): Promise<void> => {
     const next = await window.skirin.settings.set(value)
@@ -674,10 +675,13 @@ export function SettingsDialog({
             className="w-[168px]"
           />
         </Row>
-        <Row label="Default look">
+        <Row label="Default look" hint="What a new session's first capture starts with">
           <Select
             value={settings.defaultPresetId}
-            options={LOOKS.map((l) => ({ value: l.id, label: l.name }))}
+            options={[
+              ...LOOKS.map((l) => ({ value: l.id, label: l.name })),
+              ...presets.map((p) => ({ value: p.id, label: `${p.name} (saved)` }))
+            ]}
             onChange={(defaultPresetId) => void patch({ defaultPresetId })}
             className="w-[140px]"
           />
