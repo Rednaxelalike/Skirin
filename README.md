@@ -89,6 +89,18 @@ Other scripts: `npm run build:renderer` (editor bundle only),
 
 All five are rebindable in Settings, and each one also lives in the tray menu.
 
+**Windows' own screenshot keys** can answer to Skirin instead, from Settings →
+Windows screenshot keys. Neither `PrtScn` nor `Win + Shift + S` can be
+registered as an ordinary accelerator (the shell holds both), so a low-level
+keyboard hook takes them while the switch is on and gives them straight back
+when it is off — nothing is written to the registry and no sign-out is needed.
+`Alt + PrtScn` and `Win + PrtScn` are left to Windows.
+
+These two are also the one capture path that leaves the editor on screen, which
+is what makes it possible to screenshot Skirin itself and edit the result in
+Skirin. The shot always opens in the editor, whatever "After a capture" says.
+Both are off until you turn them on.
+
 **The selection overlay** freezes the screen first, so what you drag over is
 exactly what you get — no flicker, no chasing a moving target.
 
@@ -186,6 +198,7 @@ src-tauri/src/
   lib.rs           wiring: plugins, commands, window events
   app.rs           the main window, and what happens to a capture once it exists
   overlay.rs       per-monitor selection overlays and their lifecycle
+  systemkeys.rs    the keyboard hook that borrows PrtScn and Win+Shift+S
   capture/
     wgc.rs         Windows.Graphics.Capture — the frame grabber
     gdi.rs         BitBlt/PrintWindow fallback

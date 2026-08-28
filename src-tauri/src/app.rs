@@ -128,6 +128,13 @@ pub fn with_hidden_editor<T>(app: &AppHandle, f: impl FnOnce() -> T) -> T {
 /// Applies the user's "after capture" preference: copy, save, open the editor,
 /// or some combination.
 pub fn deliver(app: &AppHandle, capture: Option<Capture>) -> Option<Capture> {
+    deliver_with(app, capture, false)
+}
+
+/// `force_editor` overrides the "after capture" preference for the one case
+/// that is unambiguously a request to edit — a Windows capture key, pressed
+/// with Skirin already in front of the user.
+fn deliver_with(app: &AppHandle, capture: Option<Capture>, force_editor: bool) -> Option<Capture> {
     let capture = capture?;
     let state = app.state::<App>();
     let settings = state.store.settings();
@@ -145,7 +152,7 @@ pub fn deliver(app: &AppHandle, capture: Option<Capture>) -> Option<Capture> {
         let _ = save_capture(app, &capture);
     }
 
-    if matches!(after, "editor" | "editor-copy") {
+    if force_editor || matches!(after, "editor" | "editor-copy") {
         if let Some(window) = show_editor(app) {
             let _ = window.emit("capture:new", &capture);
         }
@@ -205,6 +212,16 @@ pub enum CaptureKind {
     Area,
     Display(Option<i64>),
     LastRegion,
+    /// An area selection started from one of Windows' own capture keys. Same
+    /// selection, two differences: the editor stays on screen so it can be in
+    /// the shot, and the result always lands back in it.
+    SystemArea,
+}
+
+impl CaptureKind {
+    fn keeps_editor(self) -> bool {
+        matches!(self, CaptureKind::SystemArea)
+    }
 }
 
 /// The whole capture path: honour the delay, get out of the way, grab, deliver.
@@ -217,17 +234,25 @@ pub fn run_capture(app: &AppHandle, kind: CaptureKind) -> Option<Capture> {
         std::thread::sleep(std::time::Duration::from_secs_f64(delay));
     }
 
-    let capture = with_hidden_editor(app, || match kind {
-        CaptureKind::Area => crate::overlay::begin(app),
+    let shoot = || match kind {
+        CaptureKind::Area | CaptureKind::SystemArea => crate::overlay::begin(app),
         CaptureKind::LastRegion => {
             // Nothing to repeat yet: fall through to a fresh selection rather
             // than doing nothing at all.
             crate::overlay::last_region(app).or_else(|| crate::overlay::begin(app))
         }
         CaptureKind::Display(id) => capture_display(app, id),
-    });
+    };
 
-    deliver(app, capture)
+    // Getting out of the way is the usual thing to want, and the exception is
+    // the whole point of the Windows keys: photographing Skirin's own window.
+    let capture = if kind.keeps_editor() {
+        shoot()
+    } else {
+        with_hidden_editor(app, shoot)
+    };
+
+    deliver_with(app, capture, kind.keeps_editor())
 }
 
 pub fn capture_display(app: &AppHandle, id: Option<i64>) -> Option<Capture> {

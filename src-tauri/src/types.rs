@@ -100,6 +100,18 @@ impl Default for Shortcuts {
     }
 }
 
+/// The screenshot keys Windows keeps for itself, and whether Skirin has been
+/// asked to answer them instead. Off unless the user says otherwise — these
+/// are the shell's keys, not ours.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SystemKeys {
+    /// Print Screen on its own.
+    pub print_screen: bool,
+    /// `Win+Shift+S`, the shell's snip.
+    pub snip: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExportSettings {
@@ -126,6 +138,8 @@ impl Default for ExportSettings {
 #[serde(rename_all = "camelCase")]
 pub struct AppSettings {
     pub shortcuts: Shortcuts,
+    #[serde(default)]
+    pub system_keys: SystemKeys,
     pub after_capture: String,
     pub save_dir: String,
     pub filename_template: String,
@@ -147,6 +161,7 @@ impl AppSettings {
     pub fn seed(save_dir: String) -> Self {
         Self {
             shortcuts: Shortcuts::default(),
+            system_keys: SystemKeys::default(),
             after_capture: "editor".into(),
             save_dir,
             filename_template: "Skirin {yyyy}-{MM}-{dd} at {HH}.{mm}.{ss}".into(),
